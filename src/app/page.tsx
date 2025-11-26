@@ -25,6 +25,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { useToast } from "@/hooks/use-toast"
 import { useAuthStore, demoUsers, demoCustomerEmail, demoCustomer, getRoleRedirectPath } from "@/lib/auth-store"
+import { requestMagicLink, adminLogin } from "@/lib/api"
 
 type AuthMethod = "email" | "phone"
 type AuthStep = "input" | "sending" | "sent" | "demo-redirect"
@@ -76,30 +77,28 @@ export default function LandingPage() {
 
     setAuthStep("sending")
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    try {
+      // Call real API to send magic link
+      const result = await requestMagicLink(value, authMethod)
 
-    // Check if this is the demo customer email
-    if (authMethod === "email" && customerEmail.toLowerCase() === demoCustomerEmail) {
-      setAuthStep("demo-redirect")
+      if (result.success) {
+        setAuthStep("sent")
+        toast({
+          title: "Magic link sent!",
+          description:
+            authMethod === "email" ? `Check your inbox at ${customerEmail}` : `Check your messages at ${customerPhone}`,
+        })
+      } else {
+        throw new Error(result.message || "Failed to send magic link")
+      }
+    } catch (error) {
+      setAuthStep("input")
       toast({
-        title: "Demo magic link activated!",
-        description: "Redirecting to customer portal...",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to send magic link. Please try again.",
+        variant: "destructive",
       })
-
-      // Simulate magic link click delay then redirect
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-      setUser(demoCustomer)
-      router.push("/shop")
-      return
     }
-
-    setAuthStep("sent")
-    toast({
-      title: "Magic link sent!",
-      description:
-        authMethod === "email" ? `Check your inbox at ${customerEmail}` : `Check your messages at ${customerPhone}`,
-    })
   }
 
   const handleAdminSubmit = async (e: React.FormEvent) => {
@@ -113,25 +112,28 @@ export default function LandingPage() {
 
     setIsAdminLoading(true)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    try {
+      // Call real API for admin login
+      const result = await adminLogin(adminEmail, adminPassword)
 
-    const userRecord = demoUsers[adminEmail.toLowerCase()]
+      setUser({
+        id: result.user.id,
+        email: result.user.email,
+        name: result.user.email.split("@")[0],
+        role: result.user.role as "admin" | "manager" | "fulfillment",
+      })
 
-    if (!userRecord || userRecord.password !== adminPassword) {
-      setAdminError("Invalid email or password.")
+      toast({
+        title: `Welcome back!`,
+        description: "Redirecting to dashboard...",
+      })
+
+      router.push("/admin")
+    } catch (error) {
+      setAdminError(error instanceof Error ? error.message : "Invalid email or password.")
+    } finally {
       setIsAdminLoading(false)
-      return
     }
-
-    setUser(userRecord.user)
-    toast({
-      title: `Welcome back, ${userRecord.user.name}!`,
-      description: "Redirecting to dashboard...",
-    })
-
-    const redirectPath = getRoleRedirectPath(userRecord.user.role)
-    router.push(redirectPath)
   }
 
   const resetCustomerForm = () => {
