@@ -99,7 +99,7 @@ export async function adminLogin(email: string, password: string): Promise<Login
   return response;
 }
 
-export async function adminLogout(): void {
+export function adminLogout(): void {
   if (typeof window !== 'undefined') {
     localStorage.removeItem('admin_token');
   }
