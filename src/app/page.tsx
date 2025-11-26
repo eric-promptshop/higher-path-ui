@@ -79,7 +79,8 @@ export default function LandingPage() {
 
     try {
       // Call real API to send magic link
-      const result = await requestMagicLink(value, authMethod)
+      const method = authMethod === "phone" ? "sms" : "email"
+      const result = await requestMagicLink(value, method)
 
       if (result.success) {
         setAuthStep("sent")
