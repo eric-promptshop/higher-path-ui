@@ -118,7 +118,7 @@ export async function verifyAdminToken(): Promise<AdminUser | null> {
 export async function requestMagicLink(
   identifier: string,
   method: 'email' | 'sms'
-): Promise<{ success: boolean; message: string }> {
+): Promise<{ success?: boolean; sent?: boolean; message: string }> {
   // Backend expects email/phone fields and deliveryMethod
   const body = method === 'email'
     ? { email: identifier, deliveryMethod: 'email' }
@@ -133,8 +133,12 @@ export async function requestMagicLink(
 export async function verifyMagicLink(token: string): Promise<{
   success: boolean;
   customer?: { id: string; email: string; name: string };
+  token?: string;
 }> {
-  return apiFetch(`/api/auth/verify?token=${token}`);
+  return apiFetch('/api/auth/verify-token', {
+    method: 'POST',
+    body: JSON.stringify({ token }),
+  });
 }
 
 // ============ Orders ============

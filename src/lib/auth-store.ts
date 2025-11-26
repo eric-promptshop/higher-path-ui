@@ -14,8 +14,10 @@ interface AuthState {
   user: User | null
   isAuthenticated: boolean
   rememberMe: boolean
+  customerToken: string | null
   setUser: (user: User | null) => void
   setRememberMe: (remember: boolean) => void
+  setCustomerToken: (token: string | null) => void
   logout: () => void
 }
 
@@ -25,9 +27,11 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       isAuthenticated: false,
       rememberMe: true,
+      customerToken: null,
       setUser: (user) => set({ user, isAuthenticated: !!user }),
       setRememberMe: (rememberMe) => set({ rememberMe }),
-      logout: () => set({ user: null, isAuthenticated: false }),
+      setCustomerToken: (token) => set({ customerToken: token }),
+      logout: () => set({ user: null, isAuthenticated: false, customerToken: null }),
     }),
     {
       name: "hp-auth-storage",

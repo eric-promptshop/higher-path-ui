@@ -82,7 +82,7 @@ export default function LandingPage() {
       const method = authMethod === "phone" ? "sms" : "email"
       const result = await requestMagicLink(value, method)
 
-      if (result.success) {
+      if (result.sent || result.success) {
         setAuthStep("sent")
         toast({
           title: "Magic link sent!",
