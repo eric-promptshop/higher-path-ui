@@ -119,9 +119,14 @@ export async function requestMagicLink(
   identifier: string,
   method: 'email' | 'sms'
 ): Promise<{ success: boolean; message: string }> {
+  // Backend expects email/phone fields and deliveryMethod
+  const body = method === 'email'
+    ? { email: identifier, deliveryMethod: 'email' }
+    : { phone: identifier, deliveryMethod: 'sms' };
+
   return apiFetch('/api/auth/magic-link', {
     method: 'POST',
-    body: JSON.stringify({ identifier, method }),
+    body: JSON.stringify(body),
   });
 }
 
