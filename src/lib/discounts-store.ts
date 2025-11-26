@@ -118,13 +118,17 @@ export const useDiscountsStore = create<DiscountsStore>()(
       discounts: sampleDiscounts,
 
       addDiscount: (discount) => {
-        const newDiscount: Discount = {
+        const now = new Date()
+        const partialDiscount = {
           ...discount,
           id: crypto.randomUUID(),
           usageCount: 0,
-          status: calculateStatus({ ...discount, usageCount: 0 }),
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          createdAt: now,
+          updatedAt: now,
+        }
+        const newDiscount: Discount = {
+          ...partialDiscount,
+          status: calculateStatus(partialDiscount),
         }
         set((state) => ({ discounts: [...state.discounts, newDiscount] }))
       },
