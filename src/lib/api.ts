@@ -130,11 +130,17 @@ export async function requestMagicLink(
   });
 }
 
-export async function verifyMagicLink(token: string): Promise<{
-  success: boolean;
-  customer?: { id: string; email: string; name: string };
-  token?: string;
-}> {
+export interface VerifyMagicLinkResponse {
+  customer: {
+    id: string;
+    name: string;
+    email: string;
+    phone: string | null;
+  };
+  token: string;
+}
+
+export async function verifyMagicLink(token: string): Promise<VerifyMagicLinkResponse> {
   return apiFetch('/api/auth/verify-token', {
     method: 'POST',
     body: JSON.stringify({ token }),

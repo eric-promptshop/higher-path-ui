@@ -30,7 +30,8 @@ function VerifyContent() {
       try {
         const result = await verifyMagicLink(token)
 
-        if (result.success && result.customer) {
+        // Backend returns { customer, token } on success
+        if (result.customer) {
           // Store customer session
           setUser({
             id: result.customer.id,
@@ -55,12 +56,15 @@ function VerifyContent() {
         }
       } catch (error) {
         console.error("Token verification failed:", error)
-        if (error instanceof Error && error.message.includes("expired")) {
+        const errorMsg = error instanceof Error ? error.message : "Failed to verify token"
+
+        // Backend returns "Invalid or expired token" for both cases
+        if (errorMsg.toLowerCase().includes("expired") || errorMsg.toLowerCase().includes("invalid")) {
           setAuthState("expired")
-          setErrorMessage("This link has expired. Please request a new one.")
+          setErrorMessage("This link has expired or already been used. Please request a new one.")
         } else {
           setAuthState("error")
-          setErrorMessage(error instanceof Error ? error.message : "Failed to verify token")
+          setErrorMessage(errorMsg)
         }
       }
     }
