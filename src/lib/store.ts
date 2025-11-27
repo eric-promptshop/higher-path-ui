@@ -19,6 +19,7 @@ export interface CartItem {
 
 export type SubstitutionPreference = "allow" | "contact" | "cancel"
 export type DeliveryMethod = "standard" | "express"
+export type PaymentMethod = "venmo" | "cashapp" | "zelle" | "cash"
 
 export interface AppliedDiscount {
   code: string
@@ -31,6 +32,7 @@ export interface CheckoutData {
   notes: string
   substitutionPreference: SubstitutionPreference
   deliveryMethod: DeliveryMethod
+  paymentMethod: PaymentMethod
   address: {
     line1: string
     line2: string
@@ -63,6 +65,7 @@ const initialCheckoutData: CheckoutData = {
   notes: "",
   substitutionPreference: "contact",
   deliveryMethod: "standard",
+  paymentMethod: "cash",
   address: {
     line1: "",
     line2: "",

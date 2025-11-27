@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { OrderSummaryCard } from "./order-summary-card"
 import { useCartStore } from "@/lib/store"
-import { ArrowLeft, MapPin, RefreshCw, MessageCircle, XCircle, FileText, Loader2 } from "lucide-react"
+import { ArrowLeft, MapPin, RefreshCw, MessageCircle, XCircle, FileText, Loader2, CreditCard, Banknote, Smartphone } from "lucide-react"
 
 interface StepReviewProps {
   onBack: () => void
@@ -21,6 +21,13 @@ export function StepReview({ onBack, onPlaceOrder }: StepReviewProps) {
     allow: { label: "Allow substitutions", icon: <RefreshCw className="h-4 w-4" /> },
     contact: { label: "Contact me first", icon: <MessageCircle className="h-4 w-4" /> },
     cancel: { label: "Cancel unavailable items", icon: <XCircle className="h-4 w-4" /> },
+  }
+
+  const paymentLabels = {
+    venmo: { label: "Venmo", description: "Pay via Venmo app", icon: <Smartphone className="h-5 w-5 text-[#3D95CE]" /> },
+    cashapp: { label: "Cash App", description: "Pay via Cash App", icon: <Smartphone className="h-5 w-5 text-[#00D632]" /> },
+    zelle: { label: "Zelle", description: "Pay via Zelle transfer", icon: <Smartphone className="h-5 w-5 text-[#6D1ED4]" /> },
+    cash: { label: "Cash on Delivery", description: "Pay with cash at delivery", icon: <Banknote className="h-5 w-5 text-primary" /> },
   }
 
   const handlePlaceOrder = async () => {
@@ -65,6 +72,19 @@ export function StepReview({ onBack, onPlaceOrder }: StepReviewProps) {
             <h3 className="font-medium text-foreground mb-1">Substitution Preference</h3>
             <p className="text-sm text-muted-foreground">
               {substitutionLabels[checkoutData.substitutionPreference].label}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Payment Method */}
+      <div className="bg-card rounded-xl border border-border p-4">
+        <div className="flex items-start gap-3">
+          {paymentLabels[checkoutData.paymentMethod].icon}
+          <div>
+            <h3 className="font-medium text-foreground mb-1">Payment Method</h3>
+            <p className="text-sm text-muted-foreground">
+              {paymentLabels[checkoutData.paymentMethod].label}
             </p>
           </div>
         </div>

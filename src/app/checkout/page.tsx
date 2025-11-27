@@ -8,10 +8,11 @@ import { CheckoutProgress } from "@/components/checkout/checkout-progress"
 import { StepOrderNotes } from "@/components/checkout/step-order-notes"
 import { StepSubstitution } from "@/components/checkout/step-substitution"
 import { StepDelivery } from "@/components/checkout/step-delivery"
+import { StepPayment } from "@/components/checkout/step-payment"
 import { StepReview } from "@/components/checkout/step-review"
 import { useCartStore } from "@/lib/store"
 
-const steps = ["Notes", "Substitution", "Delivery", "Review"]
+const steps = ["Notes", "Substitution", "Delivery", "Payment", "Review"]
 
 export default function CheckoutPage() {
   const router = useRouter()
@@ -63,7 +64,8 @@ export default function CheckoutPage() {
         {currentStep === 1 && <StepOrderNotes onNext={() => setCurrentStep(2)} />}
         {currentStep === 2 && <StepSubstitution onNext={() => setCurrentStep(3)} onBack={() => setCurrentStep(1)} />}
         {currentStep === 3 && <StepDelivery onNext={() => setCurrentStep(4)} onBack={() => setCurrentStep(2)} />}
-        {currentStep === 4 && <StepReview onBack={() => setCurrentStep(3)} onPlaceOrder={handlePlaceOrder} />}
+        {currentStep === 4 && <StepPayment onNext={() => setCurrentStep(5)} onBack={() => setCurrentStep(3)} />}
+        {currentStep === 5 && <StepReview onBack={() => setCurrentStep(4)} onPlaceOrder={handlePlaceOrder} />}
       </main>
     </div>
   )
