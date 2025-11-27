@@ -58,7 +58,7 @@ export function CartSheet() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h4 className="font-medium text-sm text-foreground line-clamp-2">{item.product.name}</h4>
-                    <p className="text-primary font-semibold mt-1">${item.product.price.toFixed(2)}</p>
+                    <p className="text-primary font-semibold mt-1">${(item.product.price || 0).toFixed(2)}</p>
                     <div className="flex items-center justify-between mt-2">
                       <div className="flex items-center border border-border rounded-lg bg-background">
                         <button

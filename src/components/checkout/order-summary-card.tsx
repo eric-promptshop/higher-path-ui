@@ -104,11 +104,11 @@ export function OrderSummaryCard({ deliveryFee, collapsible = false, showDiscoun
               <div className="flex-1 min-w-0">
                 <h4 className="text-sm font-medium text-foreground line-clamp-1">{item.product.name}</h4>
                 <p className="text-sm text-muted-foreground">
-                  ${item.product.price.toFixed(2)} × {item.quantity}
+                  ${(item.product.price || 0).toFixed(2)} × {item.quantity}
                 </p>
               </div>
               <span className="text-sm font-medium text-foreground">
-                ${(item.product.price * item.quantity).toFixed(2)}
+                ${((item.product.price || 0) * item.quantity).toFixed(2)}
               </span>
             </div>
           ))}

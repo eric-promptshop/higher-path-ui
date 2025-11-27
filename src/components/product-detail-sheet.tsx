@@ -80,7 +80,7 @@ export function ProductDetailSheet({ product, isOpen, onClose }: ProductDetailSh
           <div className="flex-1 overflow-y-auto p-6">
             <SheetHeader className="text-left mb-4">
               <SheetTitle className="text-2xl font-semibold text-foreground">{product.name}</SheetTitle>
-              <p className="text-2xl font-bold text-primary">${product.price.toFixed(2)}</p>
+              <p className="text-2xl font-bold text-primary">${(product.price || 0).toFixed(2)}</p>
             </SheetHeader>
 
             <p className="text-muted-foreground leading-relaxed mb-6">{product.description}</p>

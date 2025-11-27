@@ -78,7 +78,7 @@ export function ProductCard({ product, onViewDetails }: ProductCardProps) {
         </button>
 
         <div className="flex items-center justify-between">
-          <span className="text-lg font-semibold text-foreground">${product.price.toFixed(2)}</span>
+          <span className="text-lg font-semibold text-foreground">${(product.price || 0).toFixed(2)}</span>
           {!isOutOfStock && (
             <span className="flex items-center gap-1 text-xs text-success">
               <span className="w-1.5 h-1.5 rounded-full bg-success" />
