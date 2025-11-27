@@ -269,6 +269,18 @@ export async function fetchCustomer(id: string): Promise<Customer> {
   return authFetch<Customer>(`/api/customers/${id}`);
 }
 
+// ============ Admin Customers ============
+
+export interface AdminCustomer extends Customer {
+  orderCount: number;
+  totalSpent: number;
+  lastOrderDate: string | null;
+}
+
+export async function fetchAdminCustomers(): Promise<AdminCustomer[]> {
+  return authFetch<AdminCustomer[]>('/api/admin/customers');
+}
+
 // ============ Checkout ============
 
 export interface CheckoutPayload {
@@ -352,6 +364,76 @@ export async function validateDiscountCode(code: string): Promise<DiscountCode> 
   return apiFetch<DiscountCode>(`/api/discount-codes/validate/${code}`);
 }
 
+// Admin discount management
+export interface CreateDiscountCodePayload {
+  code: string;
+  description?: string;
+  discountType: 'percentage' | 'fixed';
+  discountValue: number;
+  minimumOrder?: number;
+  maxUses?: number;
+  validFrom?: string;
+  validUntil?: string;
+  active?: boolean;
+}
+
+export async function createDiscountCode(payload: CreateDiscountCodePayload): Promise<DiscountCode> {
+  return authFetch<DiscountCode>('/api/admin/discount-codes', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateDiscountCode(id: string, payload: Partial<CreateDiscountCodePayload>): Promise<DiscountCode> {
+  return authFetch<DiscountCode>(`/api/admin/discount-codes/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteDiscountCode(id: string): Promise<void> {
+  return authFetch<void>(`/api/admin/discount-codes/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function fetchAdminDiscountCodes(): Promise<DiscountCode[]> {
+  return authFetch<DiscountCode[]>('/api/admin/discount-codes');
+}
+
+// ============ Business Settings ============
+
+export interface BusinessSettings {
+  businessName: string;
+  contactPhone: string;
+  supportEmail: string;
+  standardDeliveryFee: number;
+  expressDeliveryFee: number;
+  standardDeliveryDays: string;
+  expressCutoffTime: string;
+  lowStockThreshold: number;
+  autoConfirmations: boolean;
+  autoStatusUpdates: boolean;
+  requireAddress: boolean;
+  allowNotes: boolean;
+  enableTipping: boolean;
+  smsNewOrders: boolean;
+  emailLowStock: boolean;
+  emailDailySummary: boolean;
+  smsSystemAlerts: boolean;
+}
+
+export async function fetchBusinessSettings(): Promise<BusinessSettings> {
+  return authFetch<BusinessSettings>('/api/admin/settings');
+}
+
+export async function updateBusinessSettings(settings: Partial<BusinessSettings>): Promise<BusinessSettings> {
+  return authFetch<BusinessSettings>('/api/admin/settings', {
+    method: 'PATCH',
+    body: JSON.stringify(settings),
+  });
+}
+
 // ============ Checkout Discount Validation ============
 
 export interface DiscountValidationResult {
@@ -407,4 +489,87 @@ export async function fetchCustomerOrders(): Promise<OrderWithItems[]> {
 
 export async function fetchCustomerOrder(id: string): Promise<OrderWithItems> {
   return customerAuthFetch<OrderWithItems>(`/api/customer/me/orders/${id}`);
+}
+
+// ============ Admin Products ============
+
+export async function fetchAdminProducts(): Promise<Product[]> {
+  return authFetch<Product[]>('/api/admin/products');
+}
+
+export async function fetchAdminProduct(id: string): Promise<Product> {
+  return authFetch<Product>(`/api/admin/products/${id}`);
+}
+
+export interface CreateProductPayload {
+  name: string;
+  description?: string;
+  category: string;
+  basePrice: number;
+  variants?: any;
+  thcContent?: string;
+  cbdContent?: string;
+  imageUrl?: string;
+  stockQuantity?: number;
+  sortOrder?: number;
+  active?: boolean;
+}
+
+export async function createProduct(payload: CreateProductPayload): Promise<Product> {
+  return authFetch<Product>('/api/admin/products', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateProduct(id: string, payload: Partial<CreateProductPayload>): Promise<Product> {
+  return authFetch<Product>(`/api/admin/products/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteProduct(id: string): Promise<void> {
+  return authFetch<void>(`/api/admin/products/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+// ============ Inventory Adjustments ============
+
+export interface InventoryAdjustment {
+  adjustment: number;
+  reason: string;
+  notes?: string;
+}
+
+export interface InventoryTransaction {
+  id: string;
+  productId: string;
+  productName: string;
+  quantityChange: number;
+  reason: string;
+  notes: string | null;
+  performedBy: string | null;
+  createdAt: string;
+}
+
+export async function adjustProductInventory(
+  productId: string,
+  adjustment: InventoryAdjustment
+): Promise<{ product: Product; transaction: InventoryTransaction }> {
+  return authFetch<{ product: Product; transaction: InventoryTransaction }>(
+    `/api/admin/products/${productId}/inventory`,
+    {
+      method: 'POST',
+      body: JSON.stringify(adjustment),
+    }
+  );
+}
+
+export async function fetchInventoryTransactions(productId?: string): Promise<InventoryTransaction[]> {
+  const endpoint = productId
+    ? `/api/admin/inventory/transactions?productId=${productId}`
+    : '/api/admin/inventory/transactions';
+  return authFetch<InventoryTransaction[]>(endpoint);
 }

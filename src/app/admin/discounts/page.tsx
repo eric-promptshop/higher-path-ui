@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { AdminHeader } from "@/components/admin/admin-header"
 import { useDiscountsStore, type Discount, type DiscountType, type DiscountStatus } from "@/lib/discounts-store"
 import { Button } from "@/components/ui/button"
@@ -38,19 +38,172 @@ import {
   Users,
   Tag,
   Power,
+  Loader2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
+import {
+  fetchAdminDiscountCodes,
+  createDiscountCode,
+  updateDiscountCode,
+  deleteDiscountCode,
+  type DiscountCode,
+} from "@/lib/api"
 
 type FilterStatus = "all" | DiscountStatus
+
+// Map API discount to display format
+function mapApiDiscount(apiDiscount: DiscountCode): Discount {
+  const now = new Date()
+  const validFrom = apiDiscount.validFrom ? new Date(apiDiscount.validFrom) : now
+  const validUntil = apiDiscount.validUntil ? new Date(apiDiscount.validUntil) : null
+
+  let status: DiscountStatus = "active"
+  if (!apiDiscount.active) {
+    status = "disabled"
+  } else if (validUntil && validUntil < now) {
+    status = "expired"
+  } else if (validFrom > now) {
+    status = "scheduled"
+  }
+
+  return {
+    id: apiDiscount.id,
+    code: apiDiscount.code,
+    description: apiDiscount.description || "",
+    type: apiDiscount.discountType as DiscountType,
+    value: parseFloat(apiDiscount.discountValue),
+    minOrderAmount: apiDiscount.minimumOrder ? parseFloat(apiDiscount.minimumOrder) : undefined,
+    usageLimit: apiDiscount.maxUses || undefined,
+    usageCount: apiDiscount.currentUses,
+    startDate: validFrom,
+    endDate: validUntil || undefined,
+    status,
+    createdAt: new Date(apiDiscount.createdAt),
+    updatedAt: new Date(apiDiscount.createdAt),
+  }
+}
 
 export default function DiscountsPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<FilterStatus>("all")
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [editingDiscount, setEditingDiscount] = useState<Discount | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isUsingDemoData, setIsUsingDemoData] = useState(false)
+  const [apiDiscounts, setApiDiscounts] = useState<Discount[]>([])
 
-  const { discounts, addDiscount, updateDiscount, deleteDiscount, toggleStatus } = useDiscountsStore()
+  const { discounts: localDiscounts, addDiscount, updateDiscount, deleteDiscount: localDelete, toggleStatus } = useDiscountsStore()
+
+  // Fetch discounts from API
+  useEffect(() => {
+    async function loadDiscounts() {
+      try {
+        const data = await fetchAdminDiscountCodes()
+        setApiDiscounts(data.map(mapApiDiscount))
+        setIsUsingDemoData(false)
+      } catch (err) {
+        console.warn("Failed to fetch discounts from API, using demo data:", err)
+        setIsUsingDemoData(true)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    loadDiscounts()
+  }, [])
+
+  const discounts = isUsingDemoData ? localDiscounts : apiDiscounts
+
+  // Handle API operations
+  const handleCreate = async (data: Omit<Discount, "id" | "usageCount" | "status" | "createdAt" | "updatedAt">) => {
+    if (isUsingDemoData) {
+      addDiscount(data)
+    } else {
+      try {
+        const result = await createDiscountCode({
+          code: data.code,
+          description: data.description,
+          discountType: data.type,
+          discountValue: data.value,
+          minimumOrder: data.minOrderAmount,
+          maxUses: data.usageLimit,
+          validFrom: data.startDate.toISOString(),
+          validUntil: data.endDate?.toISOString(),
+          active: true,
+        })
+        setApiDiscounts((prev) => [...prev, mapApiDiscount(result)])
+      } catch (err) {
+        console.error("Failed to create discount:", err)
+        // Fallback to local
+        addDiscount(data)
+      }
+    }
+    setShowCreateDialog(false)
+    setEditingDiscount(null)
+  }
+
+  const handleUpdate = async (id: string, data: Partial<Discount>) => {
+    if (isUsingDemoData) {
+      updateDiscount(id, data)
+    } else {
+      try {
+        const result = await updateDiscountCode(id, {
+          code: data.code,
+          description: data.description,
+          discountType: data.type,
+          discountValue: data.value,
+          minimumOrder: data.minOrderAmount,
+          maxUses: data.usageLimit,
+          validFrom: data.startDate?.toISOString(),
+          validUntil: data.endDate?.toISOString(),
+        })
+        setApiDiscounts((prev) =>
+          prev.map((d) => (d.id === id ? mapApiDiscount(result) : d))
+        )
+      } catch (err) {
+        console.error("Failed to update discount:", err)
+        updateDiscount(id, data)
+      }
+    }
+    setShowCreateDialog(false)
+    setEditingDiscount(null)
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this discount code?")) return
+
+    if (isUsingDemoData) {
+      localDelete(id)
+    } else {
+      try {
+        await deleteDiscountCode(id)
+        setApiDiscounts((prev) => prev.filter((d) => d.id !== id))
+      } catch (err) {
+        console.error("Failed to delete discount:", err)
+        localDelete(id)
+      }
+    }
+  }
+
+  const handleToggleStatus = async (id: string) => {
+    const discount = discounts.find((d) => d.id === id)
+    if (!discount) return
+
+    if (isUsingDemoData) {
+      toggleStatus(id)
+    } else {
+      try {
+        const newActive = discount.status === "disabled"
+        const result = await updateDiscountCode(id, { active: newActive })
+        setApiDiscounts((prev) =>
+          prev.map((d) => (d.id === id ? mapApiDiscount(result) : d))
+        )
+      } catch (err) {
+        console.error("Failed to toggle discount status:", err)
+        toggleStatus(id)
+      }
+    }
+  }
 
   const filteredDiscounts = useMemo(() => {
     let filtered = [...discounts]
@@ -100,11 +253,32 @@ export default function DiscountsPage() {
     return `$${discount.value} off`
   }
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen">
+        <AdminHeader title="Discount Codes" />
+        <main className="p-4 lg:p-6 flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading discount codes...</p>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen">
       <AdminHeader title="Discount Codes" />
 
       <main className="p-4 lg:p-6 space-y-4">
+        {/* Demo Mode Banner */}
+        {isUsingDemoData && (
+          <div className="bg-warning/10 border border-warning/50 rounded-lg p-3 text-sm text-warning">
+            Using demo data - API unavailable
+          </div>
+        )}
+
         {/* Top controls */}
         <div className="flex flex-col sm:flex-row gap-3 justify-between">
           <div className="relative flex-1 max-w-md">
@@ -231,18 +405,14 @@ export default function DiscountsPage() {
                     >
                       <Copy className="w-4 h-4" /> Copy Code
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="flex items-center gap-2" onClick={() => toggleStatus(discount.id)}>
+                    <DropdownMenuItem className="flex items-center gap-2" onClick={() => handleToggleStatus(discount.id)}>
                       <Power className="w-4 h-4" />
                       {discount.status === "disabled" ? "Enable" : "Disable"}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       className="flex items-center gap-2 text-destructive"
-                      onClick={() => {
-                        if (window.confirm("Are you sure you want to delete this discount code?")) {
-                          deleteDiscount(discount.id)
-                        }
-                      }}
+                      onClick={() => handleDelete(discount.id)}
                     >
                       <Trash2 className="w-4 h-4" /> Delete
                     </DropdownMenuItem>
@@ -266,12 +436,10 @@ export default function DiscountsPage() {
         discount={editingDiscount}
         onSave={(data) => {
           if (editingDiscount) {
-            updateDiscount(editingDiscount.id, data)
+            handleUpdate(editingDiscount.id, data)
           } else {
-            addDiscount(data)
+            handleCreate(data)
           }
-          setShowCreateDialog(false)
-          setEditingDiscount(null)
         }}
       />
     </div>

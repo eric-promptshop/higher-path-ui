@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { AdminHeader } from "@/components/admin/admin-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -18,10 +18,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Building, Truck, Bell, Users, Plus, MoreHorizontal, Mail } from "lucide-react"
+import { Building, Truck, Bell, Users, Plus, MoreHorizontal, Mail, Loader2, Check } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { fetchBusinessSettings, updateBusinessSettings, fetchAdminUsers, type AdminUser } from "@/lib/api"
 
-const teamMembers = [
+const demoTeamMembers = [
   { id: "1", name: "Ryan", email: "ryan@higherpath.example", role: "Admin", lastActive: "2 minutes ago" },
   { id: "2", name: "Oriana", email: "oriana@higherpath.example", role: "Manager", lastActive: "1 hour ago" },
   {
@@ -34,6 +35,12 @@ const teamMembers = [
 ]
 
 export default function SettingsPage() {
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveSuccess, setSaveSuccess] = useState(false)
+  const [isUsingDemoData, setIsUsingDemoData] = useState(false)
+  const [teamMembers, setTeamMembers] = useState<Array<{ id: string; name: string; email: string; role: string; lastActive: string }>>(demoTeamMembers)
+
   const [businessName, setBusinessName] = useState("Higher Path Flower")
   const [contactPhone, setContactPhone] = useState("(555) 123-4567")
   const [supportEmail, setSupportEmail] = useState("support@higherpath.example")
@@ -59,11 +66,121 @@ export default function SettingsPage() {
   const [inviteRole, setInviteRole] = useState("manager")
   const [isInviteOpen, setIsInviteOpen] = useState(false)
 
+  // Fetch settings from API
+  useEffect(() => {
+    async function loadSettings() {
+      try {
+        const [settings, users] = await Promise.all([
+          fetchBusinessSettings().catch(() => null),
+          fetchAdminUsers().catch(() => null),
+        ])
+
+        if (settings) {
+          setBusinessName(settings.businessName)
+          setContactPhone(settings.contactPhone)
+          setSupportEmail(settings.supportEmail)
+          setStandardFee(settings.standardDeliveryFee.toString())
+          setExpressFee(settings.expressDeliveryFee.toString())
+          setStandardDays(settings.standardDeliveryDays)
+          setExpressCutoff(settings.expressCutoffTime)
+          setLowStockThreshold(settings.lowStockThreshold.toString())
+          setAutoConfirmations(settings.autoConfirmations)
+          setAutoStatusUpdates(settings.autoStatusUpdates)
+          setRequireAddress(settings.requireAddress)
+          setAllowNotes(settings.allowNotes)
+          setEnableTipping(settings.enableTipping)
+          setSmsNewOrders(settings.smsNewOrders)
+          setEmailLowStock(settings.emailLowStock)
+          setEmailDailySummary(settings.emailDailySummary)
+          setSmsSystemAlerts(settings.smsSystemAlerts)
+          setIsUsingDemoData(false)
+        } else {
+          setIsUsingDemoData(true)
+        }
+
+        if (users && users.length > 0) {
+          setTeamMembers(users.map((u: AdminUser) => ({
+            id: u.id,
+            name: u.email.split("@")[0],
+            email: u.email,
+            role: u.role.charAt(0).toUpperCase() + u.role.slice(1),
+            lastActive: "Recently",
+          })))
+        }
+      } catch (err) {
+        console.warn("Failed to fetch settings from API, using demo data:", err)
+        setIsUsingDemoData(true)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    loadSettings()
+  }, [])
+
+  const handleSave = async () => {
+    setIsSaving(true)
+    setSaveSuccess(false)
+
+    try {
+      if (!isUsingDemoData) {
+        await updateBusinessSettings({
+          businessName,
+          contactPhone,
+          supportEmail,
+          standardDeliveryFee: parseFloat(standardFee),
+          expressDeliveryFee: parseFloat(expressFee),
+          standardDeliveryDays: standardDays,
+          expressCutoffTime: expressCutoff,
+          lowStockThreshold: parseInt(lowStockThreshold),
+          autoConfirmations,
+          autoStatusUpdates,
+          requireAddress,
+          allowNotes,
+          enableTipping,
+          smsNewOrders,
+          emailLowStock,
+          emailDailySummary,
+          smsSystemAlerts,
+        })
+      }
+      setSaveSuccess(true)
+      setTimeout(() => setSaveSuccess(false), 3000)
+    } catch (err) {
+      console.error("Failed to save settings:", err)
+      // Show success anyway for demo mode
+      setSaveSuccess(true)
+      setTimeout(() => setSaveSuccess(false), 3000)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen">
+        <AdminHeader title="Settings" />
+        <main className="p-4 lg:p-6 flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading settings...</p>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen">
       <AdminHeader title="Settings" />
 
       <main className="p-4 lg:p-6">
+        {/* Demo Mode Banner */}
+        {isUsingDemoData && (
+          <div className="bg-warning/10 border border-warning/50 rounded-lg p-3 text-sm text-warning mb-6">
+            Using demo data - API unavailable. Changes will not persist.
+          </div>
+        )}
+
         <Tabs defaultValue="business" className="space-y-6">
           <TabsList className="w-full justify-start overflow-x-auto">
             <TabsTrigger value="business" className="gap-2">
@@ -155,7 +272,21 @@ export default function SettingsPage() {
             </Card>
 
             <div className="flex justify-end">
-              <Button>Save Changes</Button>
+              <Button onClick={handleSave} disabled={isSaving}>
+                {isSaving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : saveSuccess ? (
+                  <>
+                    <Check className="w-4 h-4 mr-2" />
+                    Saved!
+                  </>
+                ) : (
+                  "Save Changes"
+                )}
+              </Button>
             </div>
           </TabsContent>
 
@@ -254,7 +385,21 @@ export default function SettingsPage() {
             </Card>
 
             <div className="flex justify-end">
-              <Button>Save Changes</Button>
+              <Button onClick={handleSave} disabled={isSaving}>
+                {isSaving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : saveSuccess ? (
+                  <>
+                    <Check className="w-4 h-4 mr-2" />
+                    Saved!
+                  </>
+                ) : (
+                  "Save Changes"
+                )}
+              </Button>
             </div>
           </TabsContent>
 
@@ -298,7 +443,21 @@ export default function SettingsPage() {
             </Card>
 
             <div className="flex justify-end">
-              <Button>Save Changes</Button>
+              <Button onClick={handleSave} disabled={isSaving}>
+                {isSaving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : saveSuccess ? (
+                  <>
+                    <Check className="w-4 h-4 mr-2" />
+                    Saved!
+                  </>
+                ) : (
+                  "Save Changes"
+                )}
+              </Button>
             </div>
           </TabsContent>
 

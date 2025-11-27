@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useParams } from "next/navigation"
 import { AdminHeader } from "@/components/admin/admin-header"
 import { categories } from "@/lib/products"
 import { Button } from "@/components/ui/button"
@@ -12,14 +12,29 @@ import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Upload, ImageIcon, Loader2 } from "lucide-react"
-import { createProduct } from "@/lib/api"
+import { ArrowLeft, Upload, ImageIcon, Loader2, Trash2 } from "lucide-react"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { fetchAdminProduct, updateProduct, deleteProduct, type Product } from "@/lib/api"
 import { useMenuManagerStore } from "@/lib/menu-manager-store"
 
-export default function NewProductPage() {
+export default function EditProductPage() {
   const router = useRouter()
-  const { addProduct } = useMenuManagerStore()
+  const params = useParams()
+  const productId = params.id as string
+  const { getProductById, updateProduct: localUpdate, deleteProduct: localDelete } = useMenuManagerStore()
 
+  const [isLoading, setIsLoading] = useState(true)
+  const [isUsingDemoData, setIsUsingDemoData] = useState(false)
   const [name, setName] = useState("")
   const [category, setCategory] = useState("")
   const [description, setDescription] = useState("")
@@ -29,7 +44,44 @@ export default function NewProductPage() {
   const [isActive, setIsActive] = useState(true)
   const [isFeatured, setIsFeatured] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [error, setError] = useState("")
+
+  useEffect(() => {
+    async function loadProduct() {
+      try {
+        const product = await fetchAdminProduct(productId)
+        setName(product.name)
+        setCategory(product.category)
+        setDescription(product.description || "")
+        setPrice(product.basePrice)
+        setInventory(product.stockQuantity.toString())
+        setIsActive(product.active)
+        setIsFeatured(product.sortOrder <= 3)
+        setIsUsingDemoData(false)
+      } catch (err) {
+        console.warn("Failed to fetch product from API, using local store:", err)
+        // Fallback to local store
+        const localProduct = getProductById(productId)
+        if (localProduct) {
+          setName(localProduct.name)
+          setCategory(localProduct.category)
+          setDescription(localProduct.description || "")
+          setPrice(localProduct.price.toString())
+          setInventory(localProduct.inventory.toString())
+          setLowStockThreshold(localProduct.lowStockThreshold?.toString() || "10")
+          setIsActive(localProduct.active)
+          setIsFeatured(localProduct.featured)
+          setIsUsingDemoData(true)
+        } else {
+          setError("Product not found")
+        }
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    loadProduct()
+  }, [productId, getProductById])
 
   const isValid = name && category && price && inventory
 
@@ -39,41 +91,86 @@ export default function NewProductPage() {
     setError("")
 
     try {
-      // Try API first
-      await createProduct({
-        name,
-        category,
-        description: description || undefined,
-        basePrice: parseFloat(price),
-        stockQuantity: parseInt(inventory),
-        active: isActive,
-        sortOrder: isFeatured ? 1 : 100,
-      })
+      if (!isUsingDemoData) {
+        await updateProduct(productId, {
+          name,
+          category,
+          description: description || undefined,
+          basePrice: parseFloat(price),
+          stockQuantity: parseInt(inventory),
+          active: isActive,
+          sortOrder: isFeatured ? 1 : 100,
+        })
+      } else {
+        localUpdate(productId, {
+          name,
+          category,
+          description: description || "",
+          price: parseFloat(price),
+          inventory: parseInt(inventory),
+          lowStockThreshold: parseInt(lowStockThreshold),
+          active: isActive,
+          featured: isFeatured,
+        })
+      }
       router.push("/admin/menu")
     } catch (err) {
-      console.warn("API create failed, using local store:", err)
-      // Fallback to local store
-      addProduct({
-        name,
-        category,
-        description: description || "",
-        price: parseFloat(price),
-        inventory: parseInt(inventory),
-        image: "",
-        lowStockThreshold: parseInt(lowStockThreshold),
-        tags: isFeatured ? ["featured"] : [],
-        active: isActive,
-        featured: isFeatured,
-      })
-      router.push("/admin/menu")
+      console.error("Failed to update product:", err)
+      setError("Failed to update product")
     } finally {
       setIsSubmitting(false)
     }
   }
 
+  const handleDelete = async () => {
+    setIsDeleting(true)
+    try {
+      if (!isUsingDemoData) {
+        await deleteProduct(productId)
+      } else {
+        localDelete(productId)
+      }
+      router.push("/admin/menu")
+    } catch (err) {
+      console.error("Failed to delete product:", err)
+      setError("Failed to delete product")
+      setIsDeleting(false)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen">
+        <AdminHeader title="Edit Product" />
+        <main className="p-4 lg:p-6 flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading product...</p>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  if (error && !name) {
+    return (
+      <div className="min-h-screen">
+        <AdminHeader title="Edit Product" />
+        <main className="p-4 lg:p-6 flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <p className="text-destructive mb-4">{error}</p>
+            <Button asChild>
+              <Link href="/admin/menu">Back to Menu</Link>
+            </Button>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen">
-      <AdminHeader title="Add Product" />
+      <AdminHeader title="Edit Product" />
 
       <main className="p-4 lg:p-6">
         {/* Top bar */}
@@ -83,7 +180,10 @@ export default function NewProductPage() {
               <ArrowLeft className="w-5 h-5" />
             </Link>
           </Button>
-          <h1 className="text-xl font-semibold">Add New Product</h1>
+          <h1 className="text-xl font-semibold">Edit Product</h1>
+          {isUsingDemoData && (
+            <span className="text-xs bg-warning/10 text-warning px-2 py-1 rounded">Demo Mode</span>
+          )}
         </div>
 
         <div className="grid lg:grid-cols-3 gap-6 max-w-5xl">
@@ -184,7 +284,7 @@ export default function NewProductPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="inventory">Initial Inventory *</Label>
+                    <Label htmlFor="inventory">Current Inventory *</Label>
                     <Input
                       id="inventory"
                       type="number"
@@ -196,20 +296,22 @@ export default function NewProductPage() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="threshold">Low Stock Threshold</Label>
-                  <Input
-                    id="threshold"
-                    type="number"
-                    min="0"
-                    value={lowStockThreshold}
-                    onChange={(e) => setLowStockThreshold(e.target.value)}
-                    placeholder="10"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    You&apos;ll be alerted when inventory falls below this number
-                  </p>
-                </div>
+                {isUsingDemoData && (
+                  <div className="space-y-2">
+                    <Label htmlFor="threshold">Low Stock Threshold</Label>
+                    <Input
+                      id="threshold"
+                      type="number"
+                      min="0"
+                      value={lowStockThreshold}
+                      onChange={(e) => setLowStockThreshold(e.target.value)}
+                      placeholder="10"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      You&apos;ll be alerted when inventory falls below this number
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -250,18 +352,56 @@ export default function NewProductPage() {
                   {isSubmitting ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Creating...
+                      Saving...
                     </>
                   ) : (
-                    "Publish Product"
+                    "Save Changes"
                   )}
-                </Button>
-                <Button variant="outline" className="w-full bg-transparent" disabled={!isValid || isSubmitting}>
-                  Save as Draft
                 </Button>
                 <Button variant="ghost" className="w-full" asChild disabled={isSubmitting}>
                   <Link href="/admin/menu">Cancel</Link>
                 </Button>
+              </CardContent>
+            </Card>
+
+            {/* Danger Zone */}
+            <Card className="border-destructive/50">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base text-destructive">Danger Zone</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" className="w-full" disabled={isDeleting}>
+                      {isDeleting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Deleting...
+                        </>
+                      ) : (
+                        <>
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete Product
+                        </>
+                      )}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Product?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete the product
+                        &quot;{name}&quot; from your menu.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </CardContent>
             </Card>
           </div>

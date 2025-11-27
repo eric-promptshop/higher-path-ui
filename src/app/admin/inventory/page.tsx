@@ -1,11 +1,11 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { format, isToday } from "date-fns"
 import { AdminHeader } from "@/components/admin/admin-header"
 import { MetricCard } from "@/components/admin/metric-card"
 import { StockBadge } from "@/components/admin/stock-badge"
-import { products } from "@/lib/products"
+import { products as demoProducts } from "@/lib/products"
 import { useAdminStore } from "@/lib/admin-store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -20,21 +20,89 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Boxes, AlertTriangle, DollarSign, Package, Search, Download } from "lucide-react"
+import { Boxes, AlertTriangle, DollarSign, Package, Search, Download, Loader2 } from "lucide-react"
+import {
+  fetchAdminProducts,
+  adjustProductInventory,
+  fetchInventoryTransactions,
+  type Product as ApiProduct,
+  type InventoryTransaction,
+} from "@/lib/api"
+
+// Internal product type for the inventory page
+interface InventoryProduct {
+  id: string
+  name: string
+  price: number
+  category: string
+  inventory: number
+  image?: string
+}
+
+// Map API product to inventory format
+function mapApiProduct(apiProduct: ApiProduct): InventoryProduct {
+  return {
+    id: apiProduct.id,
+    name: apiProduct.name,
+    price: parseFloat(apiProduct.basePrice),
+    category: apiProduct.category,
+    inventory: apiProduct.stockQuantity,
+    image: apiProduct.imageUrl || undefined,
+  }
+}
+
+// Map demo product to inventory format
+function mapDemoProduct(demoProduct: typeof demoProducts[0]): InventoryProduct {
+  return {
+    id: demoProduct.id,
+    name: demoProduct.name,
+    price: demoProduct.price,
+    category: demoProduct.category,
+    inventory: demoProduct.inventory,
+    image: demoProduct.image,
+  }
+}
 
 export default function InventoryPage() {
-  const { inventoryTransactions, adjustInventory } = useAdminStore()
+  const { inventoryTransactions: localTransactions, adjustInventory } = useAdminStore()
+  const [products, setProducts] = useState<InventoryProduct[]>([])
+  const [transactions, setTransactions] = useState<InventoryTransaction[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isUsingDemoData, setIsUsingDemoData] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
-  const [adjustProduct, setAdjustProduct] = useState<(typeof products)[0] | null>(null)
+  const [adjustProduct, setAdjustProduct] = useState<InventoryProduct | null>(null)
   const [adjustQuantity, setAdjustQuantity] = useState("")
   const [adjustMode, setAdjustMode] = useState<"add" | "remove" | "set">("add")
   const [adjustReason, setAdjustReason] = useState("restock")
+  const [isAdjusting, setIsAdjusting] = useState(false)
+
+  // Fetch products from API
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [apiProducts, apiTransactions] = await Promise.all([
+          fetchAdminProducts(),
+          fetchInventoryTransactions().catch(() => []),
+        ])
+        setProducts(apiProducts.map(mapApiProduct))
+        setTransactions(apiTransactions)
+        setIsUsingDemoData(false)
+      } catch (err) {
+        console.warn("Failed to fetch products from API, using demo data:", err)
+        setProducts(demoProducts.map(mapDemoProduct))
+        setIsUsingDemoData(true)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    loadData()
+  }, [])
 
   const filteredProducts = useMemo(() => {
     if (!searchQuery.trim()) return products
     const query = searchQuery.toLowerCase()
     return products.filter((p) => p.name.toLowerCase().includes(query))
-  }, [searchQuery])
+  }, [searchQuery, products])
 
   const stats = useMemo(() => {
     const totalValue = products.reduce((sum, p) => sum + p.price * p.inventory, 0)
@@ -42,7 +110,7 @@ export default function InventoryPage() {
     const lowStock = products.filter((p) => p.inventory > 0 && p.inventory <= 10).length
     const outOfStock = products.filter((p) => p.inventory === 0).length
     return { totalValue, inStock, lowStock, outOfStock }
-  }, [])
+  }, [products])
 
   const lowStockProducts = products.filter((p) => p.inventory > 0 && p.inventory <= 10)
   const outOfStockProducts = products.filter((p) => p.inventory === 0)
@@ -51,19 +119,110 @@ export default function InventoryPage() {
     return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount)
   }
 
-  const handleAdjust = () => {
+  const handleAdjust = async () => {
     if (!adjustProduct || !adjustQuantity) return
     const qty = Number.parseInt(adjustQuantity)
-    adjustInventory(
-      adjustProduct.id,
-      adjustProduct.name,
-      adjustMode === "add" ? qty : adjustMode === "remove" ? -qty : qty,
-      adjustMode === "set" ? "adjustment" : adjustMode === "add" ? "restock" : "adjustment",
-      adjustReason,
-      "Ryan",
+
+    // Calculate the adjustment value
+    let adjustment: number
+    if (adjustMode === "set") {
+      adjustment = qty - adjustProduct.inventory
+    } else if (adjustMode === "add") {
+      adjustment = qty
+    } else {
+      adjustment = -qty
+    }
+
+    setIsAdjusting(true)
+
+    try {
+      if (!isUsingDemoData) {
+        // Call the API
+        const result = await adjustProductInventory(adjustProduct.id, {
+          adjustment,
+          reason: adjustReason,
+          notes: `${adjustMode === "set" ? "Set to" : adjustMode === "add" ? "Added" : "Removed"} ${qty} units`,
+        })
+
+        // Update local state with the new inventory
+        setProducts((prev) =>
+          prev.map((p) =>
+            p.id === adjustProduct.id
+              ? { ...p, inventory: result.product.stockQuantity }
+              : p
+          )
+        )
+
+        // Add transaction to the list
+        setTransactions((prev) => [result.transaction, ...prev])
+      } else {
+        // Demo mode - use local store
+        adjustInventory(
+          adjustProduct.id,
+          adjustProduct.name,
+          adjustment,
+          adjustMode === "set" ? "adjustment" : adjustMode === "add" ? "restock" : "adjustment",
+          adjustReason,
+          "Ryan",
+        )
+
+        // Update local products state for demo
+        setProducts((prev) =>
+          prev.map((p) =>
+            p.id === adjustProduct.id
+              ? { ...p, inventory: Math.max(0, p.inventory + adjustment) }
+              : p
+          )
+        )
+      }
+    } catch (err) {
+      console.error("Failed to adjust inventory:", err)
+      // Fallback to local adjustment for demo
+      adjustInventory(
+        adjustProduct.id,
+        adjustProduct.name,
+        adjustment,
+        adjustMode === "set" ? "adjustment" : adjustMode === "add" ? "restock" : "adjustment",
+        adjustReason,
+        "Ryan",
+      )
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.id === adjustProduct.id
+            ? { ...p, inventory: Math.max(0, p.inventory + adjustment) }
+            : p
+        )
+      )
+    } finally {
+      setIsAdjusting(false)
+      setAdjustProduct(null)
+      setAdjustQuantity("")
+    }
+  }
+
+  // Combine API transactions with local transactions for display
+  const displayTransactions = isUsingDemoData
+    ? localTransactions
+    : transactions.map((tx) => ({
+        id: tx.id,
+        productName: tx.productName,
+        quantity: tx.quantityChange,
+        reason: tx.reason,
+        timestamp: tx.createdAt,
+      }))
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen">
+        <AdminHeader title="Inventory" />
+        <main className="p-4 lg:p-6 flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading inventory...</p>
+          </div>
+        </main>
+      </div>
     )
-    setAdjustProduct(null)
-    setAdjustQuantity("")
   }
 
   return (
@@ -71,6 +230,13 @@ export default function InventoryPage() {
       <AdminHeader title="Inventory" />
 
       <main className="p-4 lg:p-6 space-y-6">
+        {/* Demo Mode Banner */}
+        {isUsingDemoData && (
+          <div className="bg-warning/10 border border-warning/50 rounded-lg p-3 text-sm text-warning">
+            Using demo data - API unavailable
+          </div>
+        )}
+
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <MetricCard
@@ -219,11 +385,11 @@ export default function InventoryPage() {
               <CardTitle className="text-base">Recent Transactions</CardTitle>
             </CardHeader>
             <CardContent>
-              {inventoryTransactions.length === 0 ? (
+              {displayTransactions.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">No inventory transactions yet</p>
               ) : (
                 <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                  {inventoryTransactions.slice(0, 20).map((tx) => (
+                  {displayTransactions.slice(0, 20).map((tx) => (
                     <div
                       key={tx.id}
                       className="flex items-start justify-between py-2 border-b border-border last:border-0"
@@ -320,11 +486,18 @@ export default function InventoryPage() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAdjustProduct(null)}>
+            <Button variant="outline" onClick={() => setAdjustProduct(null)} disabled={isAdjusting}>
               Cancel
             </Button>
-            <Button onClick={handleAdjust} disabled={!adjustQuantity}>
-              Update Inventory
+            <Button onClick={handleAdjust} disabled={!adjustQuantity || isAdjusting}>
+              {isAdjusting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                "Update Inventory"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
