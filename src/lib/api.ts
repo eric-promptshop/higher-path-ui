@@ -179,11 +179,72 @@ export async function fetchOrder(id: string): Promise<Order> {
   return authFetch<Order>(`/api/orders/${id}`);
 }
 
-export async function updateOrderStatus(id: string, status: string): Promise<Order> {
-  return authFetch<Order>(`/api/orders/${id}/status`, {
+export async function updateOrderStatus(id: string, status: string, notes?: string): Promise<Order> {
+  return authFetch<Order>(`/api/admin/orders/${id}/status`, {
     method: 'PATCH',
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({ status, notes }),
   });
+}
+
+// ============ Admin Orders ============
+
+export interface AdminOrdersParams {
+  page?: number;
+  limit?: number;
+  status?: string;
+  search?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface AdminOrderItem {
+  id: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: string;
+  totalPrice: string;
+}
+
+export interface AdminOrderWithDetails extends Order {
+  customerName: string;
+  customerPhone: string | null;
+  customerEmail: string | null;
+  items: AdminOrderItem[];
+  statusHistory?: Array<{
+    id: string;
+    status: string;
+    notes: string | null;
+    changedBy: string | null;
+    createdAt: string;
+  }>;
+}
+
+export interface AdminOrdersResponse {
+  orders: AdminOrderWithDetails[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  };
+}
+
+export async function fetchAdminOrders(params: AdminOrdersParams = {}): Promise<AdminOrdersResponse> {
+  const searchParams = new URLSearchParams();
+  if (params.page) searchParams.set('page', params.page.toString());
+  if (params.limit) searchParams.set('limit', params.limit.toString());
+  if (params.status && params.status !== 'all') searchParams.set('status', params.status);
+  if (params.search) searchParams.set('search', params.search);
+  if (params.startDate) searchParams.set('startDate', params.startDate);
+  if (params.endDate) searchParams.set('endDate', params.endDate);
+
+  const query = searchParams.toString();
+  return authFetch<AdminOrdersResponse>(`/api/admin/orders${query ? `?${query}` : ''}`);
+}
+
+export async function fetchAdminOrder(id: string): Promise<AdminOrderWithDetails> {
+  return authFetch<AdminOrderWithDetails>(`/api/admin/orders/${id}`);
 }
 
 // ============ Customers ============

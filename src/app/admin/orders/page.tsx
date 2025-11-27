@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
-import { formatDistanceToNow, format, isToday, isThisWeek } from "date-fns"
+import { formatDistanceToNow, format, isToday } from "date-fns"
 import { AdminHeader } from "@/components/admin/admin-header"
 import { StatusBadge } from "@/components/admin/status-badge"
 import { useAdminStore, type OrderStatus } from "@/lib/admin-store"
@@ -28,7 +28,13 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardList,
+  Loader2,
 } from "lucide-react"
+import {
+  fetchAdminOrders,
+  updateOrderStatus as apiUpdateOrderStatus,
+  type AdminOrderWithDetails,
+} from "@/lib/api"
 
 const statusOptions: { value: OrderStatus | "all"; label: string }[] = [
   { value: "all", label: "All Statuses" },
@@ -47,55 +53,130 @@ const dateOptions = [
   { value: "month", label: "This Month" },
 ]
 
+// Map API order to display format
+interface DisplayOrder {
+  id: string
+  orderNumber: string
+  customerName: string
+  status: OrderStatus
+  total: number
+  items: Array<{ id: string; productName: string; quantity: number }>
+  createdAt: Date
+}
+
+function mapApiOrder(order: AdminOrderWithDetails): DisplayOrder {
+  return {
+    id: order.id,
+    orderNumber: order.orderNumber,
+    customerName: order.customerName || "Unknown",
+    status: order.status as OrderStatus,
+    total: parseFloat(order.total),
+    items: order.items.map((item) => ({
+      id: item.id,
+      productName: item.productName,
+      quantity: item.quantity,
+    })),
+    createdAt: new Date(order.createdAt),
+  }
+}
+
 export default function OrdersPage() {
-  const { orders, updateOrderStatus } = useAdminStore()
+  const { orders: demoOrders, updateOrderStatus: updateDemoOrderStatus } = useAdminStore()
+  const [orders, setOrders] = useState<DisplayOrder[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isUsingDemoData, setIsUsingDemoData] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all")
   const [dateFilter, setDateFilter] = useState("all")
   const [selectedOrders, setSelectedOrders] = useState<string[]>([])
   const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalOrders, setTotalOrders] = useState(0)
   const itemsPerPage = 10
 
-  const filteredOrders = useMemo(() => {
-    let filtered = orders
+  // Fetch orders from API
+  const loadOrders = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      // Calculate date range for filters
+      let startDate: string | undefined
+      if (dateFilter === "today") {
+        startDate = new Date().toISOString().split("T")[0]
+      } else if (dateFilter === "week") {
+        const weekAgo = new Date()
+        weekAgo.setDate(weekAgo.getDate() - 7)
+        startDate = weekAgo.toISOString().split("T")[0]
+      } else if (dateFilter === "month") {
+        const monthAgo = new Date()
+        monthAgo.setMonth(monthAgo.getMonth() - 1)
+        startDate = monthAgo.toISOString().split("T")[0]
+      }
 
-    // Search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase()
-      filtered = filtered.filter(
-        (o) =>
-          o.id.toLowerCase().includes(query) ||
-          o.customerName.toLowerCase().includes(query) ||
-          o.items.some((item) => item.product.name.toLowerCase().includes(query)),
-      )
+      const response = await fetchAdminOrders({
+        page: currentPage,
+        limit: itemsPerPage,
+        status: statusFilter,
+        search: searchQuery,
+        startDate,
+      })
+
+      setOrders(response.orders.map(mapApiOrder))
+      setTotalPages(response.pagination.pages)
+      setTotalOrders(response.pagination.total)
+      setIsUsingDemoData(false)
+    } catch (error) {
+      console.error("Failed to fetch orders, using demo data:", error)
+      // Fall back to demo data
+      const mappedDemoOrders = demoOrders.map((o) => ({
+        id: o.id,
+        orderNumber: o.id,
+        customerName: o.customerName,
+        status: o.status,
+        total: o.total,
+        items: o.items.map((item) => ({
+          id: item.product.id,
+          productName: item.product.name,
+          quantity: item.quantity,
+        })),
+        createdAt: new Date(o.createdAt),
+      }))
+      setOrders(mappedDemoOrders)
+      setTotalPages(1)
+      setTotalOrders(mappedDemoOrders.length)
+      setIsUsingDemoData(true)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [currentPage, statusFilter, searchQuery, dateFilter, demoOrders])
+
+  useEffect(() => {
+    loadOrders()
+  }, [loadOrders])
+
+  // Handle status update
+  const handleUpdateOrderStatus = async (orderId: string, status: OrderStatus) => {
+    if (isUsingDemoData) {
+      updateDemoOrderStatus(orderId, status, "Admin")
+      loadOrders()
+      return
     }
 
-    // Status filter
-    if (statusFilter !== "all") {
-      filtered = filtered.filter((o) => o.status === statusFilter)
+    try {
+      await apiUpdateOrderStatus(orderId, status)
+      loadOrders()
+    } catch (error) {
+      console.error("Failed to update order status:", error)
     }
+  }
 
-    // Date filter
-    if (dateFilter === "today") {
-      filtered = filtered.filter((o) => isToday(new Date(o.createdAt)))
-    } else if (dateFilter === "week") {
-      filtered = filtered.filter((o) => isThisWeek(new Date(o.createdAt)))
-    } else if (dateFilter === "month") {
-      const monthAgo = new Date()
-      monthAgo.setMonth(monthAgo.getMonth() - 1)
-      filtered = filtered.filter((o) => new Date(o.createdAt) >= monthAgo)
-    }
-
-    return filtered
-  }, [orders, searchQuery, statusFilter, dateFilter])
-
-  // Pagination
-  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage)
-  const paginatedOrders = filteredOrders.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+  // Displayed orders (already paginated from API, or filter demo data)
+  const displayOrders = isUsingDemoData
+    ? orders.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+    : orders
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedOrders(paginatedOrders.map((o) => o.id))
+      setSelectedOrders(displayOrders.map((o) => o.id))
     } else {
       setSelectedOrders([])
     }
@@ -109,10 +190,10 @@ export default function OrdersPage() {
     }
   }
 
-  const handleBulkStatusUpdate = (status: OrderStatus) => {
-    selectedOrders.forEach((orderId) => {
-      updateOrderStatus(orderId, status, "Ryan")
-    })
+  const handleBulkStatusUpdate = async (status: OrderStatus) => {
+    for (const orderId of selectedOrders) {
+      await handleUpdateOrderStatus(orderId, status)
+    }
     setSelectedOrders([])
   }
 
@@ -120,16 +201,14 @@ export default function OrdersPage() {
     return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount)
   }
 
-  // Status counts for filter badges
-  const statusCounts = useMemo(() => {
-    return orders.reduce(
-      (acc, order) => {
-        acc[order.status] = (acc[order.status] || 0) + 1
-        return acc
-      },
-      {} as Record<OrderStatus, number>,
-    )
-  }, [orders])
+  // Status counts - simple count from current orders
+  const statusCounts = orders.reduce(
+    (acc, order) => {
+      acc[order.status] = (acc[order.status] || 0) + 1
+      return acc
+    },
+    {} as Record<OrderStatus, number>,
+  )
 
   return (
     <div className="min-h-screen">
@@ -232,7 +311,12 @@ export default function OrdersPage() {
 
         {/* Orders table/cards */}
         <div className="bg-card border border-border rounded-xl overflow-hidden">
-          {filteredOrders.length === 0 ? (
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-16 px-4">
+              <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
+              <p className="text-muted-foreground">Loading orders...</p>
+            </div>
+          ) : orders.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 px-4">
               <ClipboardList className="w-12 h-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-medium text-foreground mb-1">No orders found</h3>
@@ -269,7 +353,7 @@ export default function OrdersPage() {
                   <tr className="border-b border-border bg-muted/50">
                     <th className="py-3 px-4 w-10">
                       <Checkbox
-                        checked={selectedOrders.length === paginatedOrders.length && paginatedOrders.length > 0}
+                        checked={selectedOrders.length === displayOrders.length && displayOrders.length > 0}
                         onCheckedChange={handleSelectAll}
                       />
                     </th>
@@ -295,7 +379,7 @@ export default function OrdersPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedOrders.map((order) => (
+                  {displayOrders.map((order) => (
                     <tr
                       key={order.id}
                       className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors"
@@ -311,7 +395,7 @@ export default function OrdersPage() {
                           href={`/admin/orders/${order.id}`}
                           className="font-medium text-foreground hover:text-primary"
                         >
-                          #{order.id}
+                          #{order.orderNumber}
                         </Link>
                       </td>
                       <td className="py-3 px-4 text-muted-foreground">{order.customerName}</td>
@@ -346,19 +430,19 @@ export default function OrdersPage() {
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
-                              onClick={() => updateOrderStatus(order.id, "confirmed", "Ryan")}
+                              onClick={() => handleUpdateOrderStatus(order.id, "confirmed")}
                               disabled={order.status !== "pending"}
                             >
                               Mark Confirmed
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={() => updateOrderStatus(order.id, "packed", "Ryan")}
+                              onClick={() => handleUpdateOrderStatus(order.id, "packed")}
                               disabled={order.status !== "confirmed"}
                             >
                               Mark Packed
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={() => updateOrderStatus(order.id, "ready", "Ryan")}
+                              onClick={() => handleUpdateOrderStatus(order.id, "ready")}
                               disabled={order.status !== "packed"}
                             >
                               Mark Ready
@@ -373,7 +457,7 @@ export default function OrdersPage() {
 
               {/* Mobile cards */}
               <div className="lg:hidden divide-y divide-border">
-                {paginatedOrders.map((order) => (
+                {displayOrders.map((order) => (
                   <div key={order.id} className="p-4">
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-3">
@@ -386,11 +470,11 @@ export default function OrdersPage() {
                             href={`/admin/orders/${order.id}`}
                             className="font-medium text-foreground hover:text-primary"
                           >
-                            #{order.id}
+                            #{order.orderNumber}
                           </Link>
                           <span className="mx-2 text-muted-foreground">·</span>
                           <span className="text-sm text-muted-foreground">
-                            {formatDistanceToNow(new Date(order.createdAt), { addSuffix: true })}
+                            {formatDistanceToNow(order.createdAt, { addSuffix: true })}
                           </span>
                         </div>
                       </div>
@@ -426,7 +510,7 @@ export default function OrdersPage() {
                 <div className="flex items-center justify-between px-4 py-3 border-t border-border">
                   <p className="text-sm text-muted-foreground">
                     Showing {(currentPage - 1) * itemsPerPage + 1}-
-                    {Math.min(currentPage * itemsPerPage, filteredOrders.length)} of {filteredOrders.length}
+                    {Math.min(currentPage * itemsPerPage, totalOrders)} of {totalOrders}
                   </p>
                   <div className="flex items-center gap-1">
                     <Button
