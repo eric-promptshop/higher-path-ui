@@ -75,6 +75,15 @@ export default function LandingPage() {
       return
     }
 
+    // Check for demo customer - bypass magic link and auto-login
+    if (authMethod === "email" && customerEmail.toLowerCase() === demoCustomerEmail) {
+      setAuthStep("demo-redirect")
+      setUser(demoCustomer)
+      toast({ title: "Demo Access", description: "Logged in as demo customer" })
+      router.push("/shop")
+      return
+    }
+
     setAuthStep("sending")
 
     try {

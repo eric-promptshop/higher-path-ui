@@ -112,7 +112,7 @@ export default function CustomerOrdersPage() {
                           <span className="text-muted-foreground">
                             {item.quantity}x {item.productName}
                           </span>
-                          <span className="font-medium">${parseFloat(item.totalPrice).toFixed(2)}</span>
+                          <span className="font-medium">${(parseFloat(item.totalPrice) || 0).toFixed(2)}</span>
                         </div>
                       ))}
                     </div>
@@ -120,7 +120,7 @@ export default function CustomerOrdersPage() {
                     {/* Order Total */}
                     <div className="border-t border-border pt-3 flex justify-between">
                       <span className="font-medium">Total</span>
-                      <span className="font-semibold text-primary">${parseFloat(order.total).toFixed(2)}</span>
+                      <span className="font-semibold text-primary">${(parseFloat(order.total) || 0).toFixed(2)}</span>
                     </div>
 
                     {/* Delivery Address */}
