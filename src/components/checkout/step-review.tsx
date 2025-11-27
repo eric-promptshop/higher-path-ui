@@ -34,7 +34,7 @@ export function StepReview({ onBack, onPlaceOrder }: StepReviewProps) {
     <div className="space-y-6 p-4 max-w-lg mx-auto">
       <h2 className="text-xl font-semibold text-foreground">Review Your Order</h2>
 
-      <OrderSummaryCard deliveryFee={deliveryFee} />
+      <OrderSummaryCard deliveryFee={deliveryFee} showDiscountInput={true} />
 
       {/* Delivery Address */}
       <div className="bg-card rounded-xl border border-border p-4">

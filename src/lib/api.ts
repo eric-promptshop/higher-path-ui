@@ -290,3 +290,23 @@ export async function fetchDiscountCodes(): Promise<DiscountCode[]> {
 export async function validateDiscountCode(code: string): Promise<DiscountCode> {
   return apiFetch<DiscountCode>(`/api/discount-codes/validate/${code}`);
 }
+
+// ============ Checkout Discount Validation ============
+
+export interface DiscountValidationResult {
+  valid: boolean;
+  code: string;
+  type: 'percentage' | 'fixed';
+  value: number;
+  discountAmount: number;
+}
+
+export async function validateCheckoutDiscount(
+  code: string,
+  subtotal: number
+): Promise<DiscountValidationResult> {
+  return apiFetch<DiscountValidationResult>('/api/checkout/validate-discount', {
+    method: 'POST',
+    body: JSON.stringify({ code, subtotal }),
+  });
+}

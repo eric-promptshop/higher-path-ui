@@ -1,21 +1,61 @@
 "use client"
 
 import Image from "next/image"
-import { ChevronDown, ChevronUp } from "lucide-react"
+import { ChevronDown, ChevronUp, Tag, X, Loader2 } from "lucide-react"
 import { useState } from "react"
 import { useCartStore } from "@/lib/store"
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { validateCheckoutDiscount } from "@/lib/api"
 
 interface OrderSummaryCardProps {
   deliveryFee: number
   collapsible?: boolean
+  showDiscountInput?: boolean
 }
 
-export function OrderSummaryCard({ deliveryFee, collapsible = false }: OrderSummaryCardProps) {
+export function OrderSummaryCard({ deliveryFee, collapsible = false, showDiscountInput = false }: OrderSummaryCardProps) {
   const [isExpanded, setIsExpanded] = useState(!collapsible)
-  const { items, getTotal } = useCartStore()
+  const [discountCode, setDiscountCode] = useState("")
+  const [isValidating, setIsValidating] = useState(false)
+  const [discountError, setDiscountError] = useState("")
+  const { items, getTotal, checkoutData, setCheckoutData } = useCartStore()
   const subtotal = getTotal()
-  const total = subtotal + deliveryFee
+  const discountAmount = checkoutData.discount?.discountAmount || 0
+  const total = subtotal + deliveryFee - discountAmount
+
+  const handleApplyDiscount = async () => {
+    if (!discountCode.trim()) return
+
+    setIsValidating(true)
+    setDiscountError("")
+
+    try {
+      const result = await validateCheckoutDiscount(discountCode.trim(), subtotal)
+      if (result.valid) {
+        setCheckoutData({
+          discount: {
+            code: result.code,
+            type: result.type,
+            value: result.value,
+            discountAmount: result.discountAmount,
+          }
+        })
+        setDiscountCode("")
+      } else {
+        setDiscountError("Invalid discount code")
+      }
+    } catch (error) {
+      setDiscountError(error instanceof Error ? error.message : "Failed to validate code")
+    } finally {
+      setIsValidating(false)
+    }
+  }
+
+  const handleRemoveDiscount = () => {
+    setCheckoutData({ discount: null })
+  }
 
   return (
     <div className="bg-card rounded-xl border border-border overflow-hidden">
@@ -74,12 +114,68 @@ export function OrderSummaryCard({ deliveryFee, collapsible = false }: OrderSumm
           ))}
         </div>
 
+        {/* Discount Code Input */}
+        {showDiscountInput && !checkoutData.discount && (
+          <div className="p-4 border-b border-border">
+            <div className="flex gap-2">
+              <Input
+                placeholder="Discount code"
+                value={discountCode}
+                onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
+                className="flex-1"
+                disabled={isValidating}
+              />
+              <Button
+                variant="outline"
+                onClick={handleApplyDiscount}
+                disabled={isValidating || !discountCode.trim()}
+              >
+                {isValidating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Apply"}
+              </Button>
+            </div>
+            {discountError && (
+              <p className="text-sm text-destructive mt-2">{discountError}</p>
+            )}
+          </div>
+        )}
+
+        {/* Applied Discount */}
+        {checkoutData.discount && (
+          <div className="p-4 border-b border-border bg-primary/5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Tag className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium text-primary">
+                  {checkoutData.discount.code}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  ({checkoutData.discount.type === 'percentage'
+                    ? `${checkoutData.discount.value}% off`
+                    : `$${checkoutData.discount.value} off`})
+                </span>
+              </div>
+              <button
+                onClick={handleRemoveDiscount}
+                className="text-muted-foreground hover:text-destructive transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Totals */}
         <div className="p-4 space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Subtotal</span>
             <span className="font-medium text-foreground">${subtotal.toFixed(2)}</span>
           </div>
+          {checkoutData.discount && (
+            <div className="flex justify-between text-primary">
+              <span>Discount</span>
+              <span className="font-medium">-${discountAmount.toFixed(2)}</span>
+            </div>
+          )}
           <div className="flex justify-between">
             <span className="text-muted-foreground">Delivery</span>
             <span className="font-medium text-foreground">${deliveryFee.toFixed(2)}</span>

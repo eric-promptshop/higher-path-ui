@@ -1,5 +1,9 @@
 import type { Product } from "./store"
 
+// ========================================
+// DEMO DATA - DELETE WHEN API IS CONNECTED
+// This is fallback data used when the API is unavailable
+// ========================================
 export const products: Product[] = [
   {
     id: "1",
@@ -117,6 +121,10 @@ export const products: Product[] = [
     inventory: 20,
   },
 ]
+
+// ========================================
+// END DEMO DATA
+// ========================================
 
 export const categories = ["All", "Flowers", "Pre-Rolls", "Edibles", "Vapes"]
 

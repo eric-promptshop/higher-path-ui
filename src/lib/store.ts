@@ -20,6 +20,13 @@ export interface CartItem {
 export type SubstitutionPreference = "allow" | "contact" | "cancel"
 export type DeliveryMethod = "standard" | "express"
 
+export interface AppliedDiscount {
+  code: string
+  type: 'percentage' | 'fixed'
+  value: number
+  discountAmount: number
+}
+
 export interface CheckoutData {
   notes: string
   substitutionPreference: SubstitutionPreference
@@ -32,6 +39,7 @@ export interface CheckoutData {
     zip: string
   }
   saveAddress: boolean
+  discount: AppliedDiscount | null
 }
 
 interface CartStore {
@@ -63,6 +71,7 @@ const initialCheckoutData: CheckoutData = {
     zip: "",
   },
   saveAddress: false,
+  discount: null,
 }
 
 export const useCartStore = create<CartStore>()(
