@@ -16,11 +16,11 @@ function mapApiProduct(apiProduct: ApiProduct): Product {
   return {
     id: apiProduct.id,
     name: apiProduct.name,
-    price: parseFloat(apiProduct.basePrice),
+    price: parseFloat(apiProduct.basePrice) || 0,
     description: apiProduct.description || "",
     image: apiProduct.imageUrl || "/images/purple_cannabis_flower_jar.png",
     category: apiProduct.category,
-    inventory: apiProduct.stockQuantity,
+    inventory: apiProduct.stockQuantity ?? 0,
     featured: apiProduct.sortOrder <= 3, // First 3 products are featured
   }
 }
