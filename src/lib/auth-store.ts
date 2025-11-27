@@ -30,8 +30,24 @@ export const useAuthStore = create<AuthState>()(
       customerToken: null,
       setUser: (user) => set({ user, isAuthenticated: !!user }),
       setRememberMe: (rememberMe) => set({ rememberMe }),
-      setCustomerToken: (token) => set({ customerToken: token }),
-      logout: () => set({ user: null, isAuthenticated: false, customerToken: null }),
+      setCustomerToken: (token) => {
+        // Also store in localStorage for API calls
+        if (typeof window !== 'undefined') {
+          if (token) {
+            localStorage.setItem('customer_token', token)
+          } else {
+            localStorage.removeItem('customer_token')
+          }
+        }
+        set({ customerToken: token })
+      },
+      logout: () => {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('customer_token')
+          localStorage.removeItem('admin_token')
+        }
+        set({ user: null, isAuthenticated: false, customerToken: null })
+      },
     }),
     {
       name: "hp-auth-storage",

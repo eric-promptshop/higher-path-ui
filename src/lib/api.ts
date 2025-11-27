@@ -310,3 +310,40 @@ export async function validateCheckoutDiscount(
     body: JSON.stringify({ code, subtotal }),
   });
 }
+
+// ============ Customer Portal ============
+
+// Authenticated fetch for customer endpoints
+function customerAuthFetch<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('customer_token') : null;
+
+  return apiFetch<T>(endpoint, {
+    ...options,
+    headers: {
+      ...options.headers,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+}
+
+export interface OrderWithItems extends Order {
+  items: Array<{
+    id: string;
+    productId: string;
+    productName: string;
+    quantity: number;
+    unitPrice: string;
+    totalPrice: string;
+  }>;
+}
+
+export async function fetchCustomerOrders(): Promise<OrderWithItems[]> {
+  return customerAuthFetch<OrderWithItems[]>('/api/customer/me/orders');
+}
+
+export async function fetchCustomerOrder(id: string): Promise<OrderWithItems> {
+  return customerAuthFetch<OrderWithItems>(`/api/customer/me/orders/${id}`);
+}
