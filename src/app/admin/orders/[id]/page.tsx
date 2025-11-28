@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { AdminHeader } from "@/components/admin/admin-header"
 import { StatusBadge } from "@/components/admin/status-badge"
+import { SendUpdateDialog } from "@/components/admin/send-update-dialog"
+import { printOrderSlip } from "@/components/admin/order-print-slip"
 import { useAdminStore, type OrderStatus } from "@/lib/admin-store"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -42,6 +44,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
   const [newNote, setNewNote] = useState("")
   const [isAddingNote, setIsAddingNote] = useState(false)
+  const [showSendUpdateDialog, setShowSendUpdateDialog] = useState(false)
 
   if (!order) {
     return (
@@ -142,10 +145,34 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem className="flex items-center gap-2">
+                <DropdownMenuItem
+                  className="flex items-center gap-2"
+                  onClick={() => printOrderSlip({
+                    id: order.id,
+                    orderNumber: order.id,
+                    customerName: order.customerName,
+                    customerPhone: order.customerPhone,
+                    deliveryAddress: order.address ? `${order.address.line1}${order.address.line2 ? '\n' + order.address.line2 : ''}\n${order.address.city}, ${order.address.state} ${order.address.zip}` : undefined,
+                    status: order.status,
+                    subtotal: order.subtotal.toString(),
+                    shippingFee: order.deliveryFee.toString(),
+                    total: order.total.toString(),
+                    notes: order.notes,
+                    substitutionPreference: order.substitutionPreference,
+                    createdAt: order.createdAt,
+                    items: order.items.map(item => ({
+                      productName: item.product.name,
+                      quantity: item.quantity,
+                      unitPrice: item.priceAtTime.toString(),
+                    })),
+                  })}
+                >
                   <Printer className="w-4 h-4" /> Print Packing Slip
                 </DropdownMenuItem>
-                <DropdownMenuItem className="flex items-center gap-2">
+                <DropdownMenuItem
+                  className="flex items-center gap-2"
+                  onClick={() => setShowSendUpdateDialog(true)}
+                >
                   <Send className="w-4 h-4" /> Send Customer Update
                 </DropdownMenuItem>
                 <DropdownMenuItem className="flex items-center gap-2">
@@ -358,6 +385,17 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             </Card>
           </div>
         </div>
+
+        {/* Send Update Dialog */}
+        <SendUpdateDialog
+          open={showSendUpdateDialog}
+          onOpenChange={setShowSendUpdateDialog}
+          orderId={order.id}
+          orderNumber={order.id}
+          customerName={order.customerName}
+          customerPhone={order.customerPhone}
+          currentStatus={order.status}
+        />
       </main>
     </div>
   )

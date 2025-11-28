@@ -35,6 +35,8 @@ import {
   updateOrderStatus as apiUpdateOrderStatus,
   type AdminOrderWithDetails,
 } from "@/lib/api"
+import { SendUpdateDialog } from "@/components/admin/send-update-dialog"
+import { printOrderSlip } from "@/components/admin/order-print-slip"
 
 const statusOptions: { value: OrderStatus | "all"; label: string }[] = [
   { value: "all", label: "All Statuses" },
@@ -58,9 +60,18 @@ interface DisplayOrder {
   id: string
   orderNumber: string
   customerName: string
+  customerEmail?: string | null
+  customerPhone?: string | null
   status: OrderStatus
+  subtotal: number
+  shippingFee: number
+  discountAmount: number
   total: number
-  items: Array<{ id: string; productName: string; quantity: number }>
+  paymentMethod?: string
+  notes?: string | null
+  substitutionPreference?: string | null
+  deliveryAddress?: string | null
+  items: Array<{ id: string; productName: string; quantity: number; unitPrice: string }>
   createdAt: Date
 }
 
@@ -69,12 +80,22 @@ function mapApiOrder(order: AdminOrderWithDetails): DisplayOrder {
     id: order.id,
     orderNumber: order.orderNumber,
     customerName: order.customerName || "Unknown",
+    customerEmail: order.customerEmail,
+    customerPhone: order.customerPhone,
     status: order.status as OrderStatus,
+    subtotal: parseFloat(order.subtotal),
+    shippingFee: parseFloat(order.shippingFee || "0"),
+    discountAmount: parseFloat(order.discountAmount || "0"),
     total: parseFloat(order.total),
+    paymentMethod: order.paymentMethod,
+    notes: order.notes,
+    substitutionPreference: order.substitutionPreference,
+    deliveryAddress: order.deliveryAddress,
     items: order.items.map((item) => ({
       id: item.id,
       productName: item.productName,
       quantity: item.quantity,
+      unitPrice: item.unitPrice,
     })),
     createdAt: new Date(order.createdAt),
   }
@@ -92,6 +113,7 @@ export default function OrdersPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalOrders, setTotalOrders] = useState(0)
+  const [sendUpdateOrder, setSendUpdateOrder] = useState<DisplayOrder | null>(null)
   const itemsPerPage = 10
 
   // Fetch orders from API
@@ -127,16 +149,23 @@ export default function OrdersPage() {
     } catch (error) {
       console.error("Failed to fetch orders, using demo data:", error)
       // Fall back to demo data
-      const mappedDemoOrders = demoOrders.map((o) => ({
+      const mappedDemoOrders: DisplayOrder[] = demoOrders.map((o) => ({
         id: o.id,
         orderNumber: o.id,
         customerName: o.customerName,
+        customerPhone: o.customerPhone,
         status: o.status,
+        subtotal: o.subtotal,
+        shippingFee: o.deliveryFee || 0,
+        discountAmount: 0,
         total: o.total,
+        notes: o.notes,
+        substitutionPreference: o.substitutionPreference,
         items: o.items.map((item) => ({
           id: item.product.id,
           productName: item.product.name,
           quantity: item.quantity,
+          unitPrice: item.priceAtTime.toString(),
         })),
         createdAt: new Date(o.createdAt),
       }))
@@ -422,10 +451,37 @@ export default function OrdersPage() {
                                 <Eye className="w-4 h-4" /> View Details
                               </Link>
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="flex items-center gap-2">
+                            <DropdownMenuItem
+                              className="flex items-center gap-2"
+                              onClick={() => printOrderSlip({
+                                id: order.id,
+                                orderNumber: order.orderNumber,
+                                customerName: order.customerName,
+                                customerEmail: order.customerEmail,
+                                customerPhone: order.customerPhone,
+                                deliveryAddress: order.deliveryAddress,
+                                status: order.status,
+                                subtotal: order.subtotal.toString(),
+                                shippingFee: order.shippingFee.toString(),
+                                discountAmount: order.discountAmount.toString(),
+                                total: order.total.toString(),
+                                paymentMethod: order.paymentMethod,
+                                notes: order.notes,
+                                substitutionPreference: order.substitutionPreference,
+                                createdAt: order.createdAt,
+                                items: order.items.map(item => ({
+                                  productName: item.productName,
+                                  quantity: item.quantity,
+                                  unitPrice: item.unitPrice,
+                                })),
+                              })}
+                            >
                               <Printer className="w-4 h-4" /> Print Slip
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="flex items-center gap-2">
+                            <DropdownMenuItem
+                              className="flex items-center gap-2"
+                              onClick={() => setSendUpdateOrder(order)}
+                            >
                               <Send className="w-4 h-4" /> Send Update
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
@@ -488,8 +544,35 @@ export default function OrdersPage() {
                           <DropdownMenuItem asChild>
                             <Link href={`/admin/orders/${order.id}`}>View Details</Link>
                           </DropdownMenuItem>
-                          <DropdownMenuItem>Print Slip</DropdownMenuItem>
-                          <DropdownMenuItem>Update Status</DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => printOrderSlip({
+                              id: order.id,
+                              orderNumber: order.orderNumber,
+                              customerName: order.customerName,
+                              customerEmail: order.customerEmail,
+                              customerPhone: order.customerPhone,
+                              deliveryAddress: order.deliveryAddress,
+                              status: order.status,
+                              subtotal: order.subtotal.toString(),
+                              shippingFee: order.shippingFee.toString(),
+                              discountAmount: order.discountAmount.toString(),
+                              total: order.total.toString(),
+                              paymentMethod: order.paymentMethod,
+                              notes: order.notes,
+                              substitutionPreference: order.substitutionPreference,
+                              createdAt: order.createdAt,
+                              items: order.items.map(item => ({
+                                productName: item.productName,
+                                quantity: item.quantity,
+                                unitPrice: item.unitPrice,
+                              })),
+                            })}
+                          >
+                            Print Slip
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setSendUpdateOrder(order)}>
+                            Send Update
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -551,6 +634,20 @@ export default function OrdersPage() {
             </>
           )}
         </div>
+
+        {/* Send Update Dialog */}
+        {sendUpdateOrder && (
+          <SendUpdateDialog
+            open={!!sendUpdateOrder}
+            onOpenChange={(open) => !open && setSendUpdateOrder(null)}
+            orderId={sendUpdateOrder.id}
+            orderNumber={sendUpdateOrder.orderNumber}
+            customerName={sendUpdateOrder.customerName}
+            customerEmail={sendUpdateOrder.customerEmail}
+            customerPhone={sendUpdateOrder.customerPhone}
+            currentStatus={sendUpdateOrder.status}
+          />
+        )}
       </main>
     </div>
   )

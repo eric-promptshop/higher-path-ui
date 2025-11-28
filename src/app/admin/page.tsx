@@ -11,10 +11,12 @@ import { useAdminStore, type Order } from "@/lib/admin-store"
 import { products as demoProducts } from "@/lib/products"
 import { ClipboardList, DollarSign, Clock, AlertTriangle, ArrowRight, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { fetchDashboardStats, fetchAdminOrders, fetchAdminProducts, type DashboardStats, type AdminOrderWithDetails } from "@/lib/api"
+import { fetchDashboardStats, fetchAdminOrders, fetchAdminProducts, updateOrderStatus, type DashboardStats, type AdminOrderWithDetails } from "@/lib/api"
+import { useToast } from "@/hooks/use-toast"
 
 export default function AdminDashboardPage() {
-  const { orders: localOrders, activities, getTodayOrders, getWeekOrders, getOrdersByStatus, getLowStockProducts } = useAdminStore()
+  const { orders: localOrders, activities, getTodayOrders, getWeekOrders, getOrdersByStatus, getLowStockProducts, updateOrderStatus: updateDemoOrderStatus } = useAdminStore()
+  const { toast } = useToast()
 
   const [isLoading, setIsLoading] = useState(true)
   const [isUsingDemoData, setIsUsingDemoData] = useState(false)
@@ -106,6 +108,62 @@ export default function AdminDashboardPage() {
       }))
     : localOrders.slice(0, 5)
 
+  // Filter to get pending orders for quick actions
+  const actionableOrders = displayOrders.filter(o => o.status === "pending" || o.status === "confirmed")
+
+  // Handler for bulk mark ready
+  const handleBulkMarkReady = async () => {
+    const ordersToUpdate = actionableOrders.filter(o => o.status === "pending" || o.status === "confirmed")
+
+    if (ordersToUpdate.length === 0) {
+      toast({
+        title: "No orders to update",
+        description: "There are no pending orders to mark as ready.",
+      })
+      return
+    }
+
+    let successCount = 0
+    let errorCount = 0
+
+    for (const order of ordersToUpdate) {
+      try {
+        if (isUsingDemoData) {
+          updateDemoOrderStatus(order.id, "ready", "Admin")
+          successCount++
+        } else {
+          await updateOrderStatus(order.id, "ready")
+          successCount++
+        }
+      } catch (error) {
+        console.error(`Failed to update order ${order.id}:`, error)
+        errorCount++
+      }
+    }
+
+    // Refresh the dashboard data
+    if (!isUsingDemoData) {
+      try {
+        const [newStats, ordersData] = await Promise.all([
+          fetchDashboardStats().catch(() => null),
+          fetchAdminOrders({ limit: 5 }).catch(() => null),
+        ])
+        if (newStats) setStats(newStats)
+        if (ordersData) setRecentOrders(ordersData.orders)
+      } catch (error) {
+        console.error("Failed to refresh dashboard:", error)
+      }
+    }
+
+    toast({
+      title: successCount > 0 ? "Orders Updated" : "Update Failed",
+      description: errorCount > 0
+        ? `${successCount} orders marked as ready, ${errorCount} failed.`
+        : `${successCount} order${successCount !== 1 ? 's' : ''} marked as ready.`,
+      variant: errorCount > 0 ? "destructive" : "default",
+    })
+  }
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount)
   }
@@ -186,7 +244,11 @@ export default function AdminDashboardPage() {
             {/* Quick Actions */}
             <div className="bg-card border border-border rounded-xl p-4">
               <h2 className="font-semibold text-foreground mb-4">Quick Actions</h2>
-              <QuickActions pendingCount={displayStats.pendingOrders} />
+              <QuickActions
+                pendingCount={displayStats.pendingOrders}
+                orders={actionableOrders}
+                onMarkReady={handleBulkMarkReady}
+              />
             </div>
 
             {/* Activity Feed */}

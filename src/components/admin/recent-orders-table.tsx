@@ -1,11 +1,14 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
 import { formatDistanceToNow } from "date-fns"
 import { MoreHorizontal, Eye, Printer, Send } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { StatusBadge } from "./status-badge"
+import { SendUpdateDialog } from "./send-update-dialog"
+import { printOrderSlip } from "./order-print-slip"
 import type { Order } from "@/lib/admin-store"
 
 interface RecentOrdersTableProps {
@@ -13,6 +16,7 @@ interface RecentOrdersTableProps {
 }
 
 export function RecentOrdersTable({ orders }: RecentOrdersTableProps) {
+  const [sendUpdateOrder, setSendUpdateOrder] = useState<Order | null>(null)
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount)
   }
@@ -78,10 +82,30 @@ export function RecentOrdersTable({ orders }: RecentOrdersTableProps) {
                         <Eye className="w-4 h-4" /> View Details
                       </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="flex items-center gap-2">
+                    <DropdownMenuItem
+                      className="flex items-center gap-2"
+                      onClick={() => printOrderSlip({
+                        id: order.id,
+                        orderNumber: order.id,
+                        customerName: order.customerName,
+                        customerPhone: order.customerPhone,
+                        status: order.status,
+                        subtotal: order.subtotal.toString(),
+                        total: order.total.toString(),
+                        createdAt: order.createdAt,
+                        items: order.items.map(item => ({
+                          productName: item.product.name,
+                          quantity: item.quantity,
+                          unitPrice: item.priceAtTime.toString(),
+                        })),
+                      })}
+                    >
                       <Printer className="w-4 h-4" /> Print Slip
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="flex items-center gap-2">
+                    <DropdownMenuItem
+                      className="flex items-center gap-2"
+                      onClick={() => setSendUpdateOrder(order)}
+                    >
                       <Send className="w-4 h-4" /> Send Update
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -116,8 +140,28 @@ export function RecentOrdersTable({ orders }: RecentOrdersTableProps) {
                   <DropdownMenuItem asChild>
                     <Link href={`/admin/orders/${order.id}`}>View Details</Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem>Print Slip</DropdownMenuItem>
-                  <DropdownMenuItem>Send Update</DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => printOrderSlip({
+                      id: order.id,
+                      orderNumber: order.id,
+                      customerName: order.customerName,
+                      customerPhone: order.customerPhone,
+                      status: order.status,
+                      subtotal: order.subtotal.toString(),
+                      total: order.total.toString(),
+                      createdAt: order.createdAt,
+                      items: order.items.map(item => ({
+                        productName: item.product.name,
+                        quantity: item.quantity,
+                        unitPrice: item.priceAtTime.toString(),
+                      })),
+                    })}
+                  >
+                    Print Slip
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSendUpdateOrder(order)}>
+                    Send Update
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -129,6 +173,19 @@ export function RecentOrdersTable({ orders }: RecentOrdersTableProps) {
           </div>
         ))}
       </div>
+
+      {/* Send Update Dialog */}
+      {sendUpdateOrder && (
+        <SendUpdateDialog
+          open={!!sendUpdateOrder}
+          onOpenChange={(open) => !open && setSendUpdateOrder(null)}
+          orderId={sendUpdateOrder.id}
+          orderNumber={sendUpdateOrder.id}
+          customerName={sendUpdateOrder.customerName}
+          customerPhone={sendUpdateOrder.customerPhone}
+          currentStatus={sendUpdateOrder.status}
+        />
+      )}
     </div>
   )
 }

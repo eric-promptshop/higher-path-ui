@@ -155,6 +155,7 @@ export interface Order {
   customerId: string;
   status: string;
   subtotal: string;
+  shippingFee?: string;
   discountAmount: string;
   discountCodeId: string | null;
   taxAmount: string;
@@ -572,4 +573,23 @@ export async function fetchInventoryTransactions(productId?: string): Promise<In
     ? `/api/admin/inventory/transactions?productId=${productId}`
     : '/api/admin/inventory/transactions';
   return authFetch<InventoryTransaction[]>(endpoint);
+}
+
+// ============ Send Order Update Notification ============
+
+export interface SendUpdateResponse {
+  success: boolean;
+  message: string;
+  messageId?: string;
+  error?: string;
+}
+
+export async function sendOrderUpdate(
+  orderId: string,
+  method: 'email' | 'sms'
+): Promise<SendUpdateResponse> {
+  return authFetch<SendUpdateResponse>(`/api/admin/orders/${orderId}/send-update`, {
+    method: 'POST',
+    body: JSON.stringify({ method }),
+  });
 }

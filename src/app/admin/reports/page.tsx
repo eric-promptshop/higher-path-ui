@@ -1,6 +1,7 @@
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import { format, subDays, eachDayOfInterval, startOfDay, isWithinInterval } from "date-fns"
 import { AdminHeader } from "@/components/admin/admin-header"
 import { MetricCard } from "@/components/admin/metric-card"
@@ -8,12 +9,13 @@ import { useAdminStore } from "@/lib/admin-store"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useState } from "react"
 import { DollarSign, ShoppingCart, Users, TrendingUp, Download, BarChart3 } from "lucide-react"
 
 export default function ReportsPage() {
   const { orders } = useAdminStore()
-  const [dateRange, setDateRange] = useState("30")
+  const searchParams = useSearchParams()
+  const initialRange = searchParams.get("range") === "today" ? "1" : "30"
+  const [dateRange, setDateRange] = useState(initialRange)
 
   const days = Number.parseInt(dateRange)
   const startDate = subDays(new Date(), days)
@@ -113,6 +115,7 @@ export default function ReportsPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="1">Today</SelectItem>
               <SelectItem value="7">Last 7 Days</SelectItem>
               <SelectItem value="30">Last 30 Days</SelectItem>
               <SelectItem value="90">Last 90 Days</SelectItem>
