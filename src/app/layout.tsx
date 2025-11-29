@@ -7,27 +7,19 @@ import "./globals.css"
 const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
-// <CHANGE> Updated metadata for Higher Path Flower
 export const metadata: Metadata = {
   title: "Higher Path Flower | Order Portal",
   description: "Your trusted source for premium flower delivery. Discreet, reliable, professional.",
-  generator: "v0.app",
-  icons: {
-    icon: [
-      {
-        url: "/icon-light-32x32.png",
-        media: "(prefers-color-scheme: light)",
-      },
-      {
-        url: "/icon-dark-32x32.png",
-        media: "(prefers-color-scheme: dark)",
-      },
-      {
-        url: "/icon.svg",
-        type: "image/svg+xml",
-      },
-    ],
-    apple: "/apple-icon.png",
+  openGraph: {
+    title: "Higher Path Flower | Order Portal",
+    description: "Your trusted source for premium flower delivery. Discreet, reliable, professional.",
+    siteName: "Higher Path",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Higher Path Flower | Order Portal",
+    description: "Your trusted source for premium flower delivery. Discreet, reliable, professional.",
   },
 }
 
