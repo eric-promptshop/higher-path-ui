@@ -344,7 +344,17 @@ export default function LandingPage() {
 
                     <TabsContent value="phone" className="mt-0">
                       <div className="space-y-4">
-                        <div className="space-y-2">
+                        {/* Coming Soon Banner */}
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-center">
+                          <div className="flex items-center justify-center gap-2 text-amber-700 font-medium mb-1">
+                            <Phone className="w-4 h-4" />
+                            Coming Soon
+                          </div>
+                          <p className="text-sm text-amber-600">
+                            SMS verification is being set up. Please use email for now.
+                          </p>
+                        </div>
+                        <div className="space-y-2 opacity-50 pointer-events-none">
                           <Label htmlFor="customer-phone">Phone number</Label>
                           <Input
                             id="customer-phone"
@@ -353,7 +363,7 @@ export default function LandingPage() {
                             value={customerPhone}
                             onChange={handlePhoneChange}
                             className="h-12 text-base"
-                            disabled={authStep === "sending"}
+                            disabled={true}
                             maxLength={14}
                           />
                         </div>
@@ -363,7 +373,7 @@ export default function LandingPage() {
                     <Button
                       type="submit"
                       className="w-full h-12 mt-6 text-base gap-2"
-                      disabled={authStep === "sending"}
+                      disabled={authStep === "sending" || authMethod === "phone"}
                     >
                       {authStep === "sending" ? (
                         <>
