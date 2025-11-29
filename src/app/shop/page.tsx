@@ -11,14 +11,26 @@ import { products as demoProducts, categories } from "@/lib/products"
 import { fetchProducts, type Product as ApiProduct } from "@/lib/api"
 import type { Product } from "@/lib/store"
 
+// Default images by category for products without images
+const categoryImages: Record<string, string> = {
+  "Flowers": "/images/purple_cannabis_flower_jar.png",
+  "Pre-Rolls": "/images/pre-rolled_joints_packaging.png",
+  "Edibles": "/images/cannabis_edible_gummies_product.png",
+  "Vapes": "/images/cannabis_concentrate_jar_product.png",
+  "Concentrates": "/images/cannabis_concentrate_jar_product.png",
+}
+
 // Map API product to UI product format
 function mapApiProduct(apiProduct: ApiProduct): Product {
+  const price = parseFloat(apiProduct.basePrice) || 0
+  const image = apiProduct.imageUrl || categoryImages[apiProduct.category] || "/images/purple_cannabis_flower_jar.png"
+
   return {
     id: apiProduct.id,
     name: apiProduct.name,
-    price: parseFloat(apiProduct.basePrice) || 0,
+    price,
     description: apiProduct.description || "",
-    image: apiProduct.imageUrl || "/images/purple_cannabis_flower_jar.png",
+    image,
     category: apiProduct.category,
     inventory: apiProduct.stockQuantity ?? 0,
     featured: apiProduct.sortOrder <= 3, // First 3 products are featured
