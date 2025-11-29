@@ -2,13 +2,21 @@
 
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { CheckCircle2, Download, Truck, MessageCircle } from "lucide-react"
+import { CheckCircle2, Download, Truck, MessageCircle, Clock, Smartphone } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Suspense } from "react"
+
+const paymentMethodLabels: Record<string, { name: string; color: string }> = {
+  venmo: { name: "Venmo", color: "#3D95CE" },
+  cashapp: { name: "Cash App", color: "#00D632" },
+  zelle: { name: "Zelle", color: "#6D1ED4" },
+}
 
 function ConfirmationContent() {
   const searchParams = useSearchParams()
   const orderId = searchParams.get("orderId") || "XXXXXX"
+  const paymentMethod = searchParams.get("paymentMethod")
+  const paymentPending = searchParams.get("paymentPending") === "true"
 
   const now = new Date()
   const orderDate = now.toLocaleDateString("en-US", {
@@ -31,6 +39,8 @@ function ConfirmationContent() {
     day: "numeric",
   })
 
+  const paymentInfo = paymentMethod ? paymentMethodLabels[paymentMethod] : null
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <main className="flex-1 flex flex-col items-center justify-center p-6 text-center">
@@ -51,6 +61,23 @@ function ConfirmationContent() {
           <br />
           Placed on {orderDate} at {orderTime}
         </p>
+
+        {/* Payment Pending Notice */}
+        {paymentPending && paymentInfo && (
+          <div className="w-full max-w-sm bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 mb-6 animate-in fade-in-0 slide-in-from-bottom-2 duration-500 delay-450">
+            <div className="flex items-center gap-3 justify-center">
+              <Clock className="h-5 w-5 text-amber-600" />
+              <div className="text-left">
+                <p className="text-sm font-medium text-foreground">Payment Verification Pending</p>
+                <p className="text-xs text-muted-foreground">
+                  We&apos;re waiting to confirm your{" "}
+                  <span style={{ color: paymentInfo.color }}>{paymentInfo.name}</span> payment.
+                  You&apos;ll receive a notification once verified.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Estimated Delivery */}
         <div className="w-full max-w-sm bg-card rounded-xl border border-border p-4 mb-6 animate-in fade-in-0 slide-in-from-bottom-2 duration-500 delay-500">
