@@ -50,7 +50,17 @@ export default function ShopPage() {
       try {
         const apiProducts = await fetchProducts()
         const mappedProducts = apiProducts.map(mapApiProduct)
-        setProducts(mappedProducts)
+
+        // Check if API products are usable (at least some have prices)
+        const hasValidPrices = mappedProducts.some(p => p.price > 0)
+
+        if (hasValidPrices) {
+          setProducts(mappedProducts)
+        } else {
+          // API products have no prices, use demo data for better demo experience
+          console.warn("API products have no prices, using demo data")
+          setProducts(demoProducts)
+        }
       } catch (error) {
         console.error("Failed to fetch products, using demo data:", error)
         // Keep demo products as fallback
