@@ -29,6 +29,7 @@ import {
   ChevronRight,
   ClipboardList,
   Loader2,
+  ChefHat,
 } from "lucide-react"
 import {
   fetchAdminOrders,
@@ -37,6 +38,9 @@ import {
 } from "@/lib/api"
 import { SendUpdateDialog } from "@/components/admin/send-update-dialog"
 import { printOrderSlip } from "@/components/admin/order-print-slip"
+import { useChefsChoiceStore } from "@/lib/chefs-choice-store"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent } from "@/components/ui/card"
 
 const statusOptions: { value: OrderStatus | "all"; label: string }[] = [
   { value: "all", label: "All Statuses" },
@@ -103,6 +107,7 @@ function mapApiOrder(order: AdminOrderWithDetails): DisplayOrder {
 
 export default function OrdersPage() {
   const { orders: demoOrders, updateOrderStatus: updateDemoOrderStatus } = useAdminStore()
+  const { orders: chefsChoiceOrders } = useChefsChoiceStore()
   const [orders, setOrders] = useState<DisplayOrder[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isUsingDemoData, setIsUsingDemoData] = useState(false)
@@ -310,6 +315,33 @@ export default function OrdersPage() {
             </button>
           ))}
         </div>
+
+        {/* Chef's Choice Orders Banner */}
+        {chefsChoiceOrders.length > 0 && (
+          <Card className="bg-primary/5 border-primary/20">
+            <CardContent className="py-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <ChefHat className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium">Chef&apos;s Choice Orders</p>
+                    <p className="text-sm text-muted-foreground">
+                      {chefsChoiceOrders.filter(o => o.status === "pending").length} pending, {chefsChoiceOrders.length} total
+                    </p>
+                  </div>
+                </div>
+                <Link href="/admin/chefs-choice">
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <ChefHat className="w-4 h-4" />
+                    Manage
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Bulk actions */}
         {selectedOrders.length > 0 && (

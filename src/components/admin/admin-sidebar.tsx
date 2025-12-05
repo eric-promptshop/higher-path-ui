@@ -14,6 +14,7 @@ import {
   LogOut,
   Package,
   Percent,
+  ChefHat,
 } from "lucide-react"
 import { useAuthStore } from "@/lib/auth-store"
 import { useRouter } from "next/navigation"
@@ -23,6 +24,7 @@ import { useMenuManagerStore } from "@/lib/menu-manager-store"
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/orders", label: "Orders", icon: ClipboardList },
+  { href: "/admin/chefs-choice", label: "Chef's Choice", icon: ChefHat },
   { href: "/admin/menu", label: "Menu", icon: Package },
   { href: "/admin/inventory", label: "Inventory", icon: Boxes },
   { href: "/admin/discounts", label: "Discounts", icon: Percent },
