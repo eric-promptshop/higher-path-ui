@@ -593,3 +593,254 @@ export async function sendOrderUpdate(
     body: JSON.stringify({ method }),
   });
 }
+
+// ============ Chef's Choice ============
+
+export type TierType = 'dollar' | 'volume';
+export type SubscriptionFrequency = 'one-time' | 'weekly' | 'biweekly' | 'monthly';
+export type SubscriptionStatus = 'active' | 'paused' | 'cancelled';
+
+export interface ChefsChoiceTier {
+  id: string;
+  type: TierType;
+  value: string;
+  label: string;
+  description: string | null;
+  active: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ChefsChoiceTemplateItem {
+  id: string;
+  templateId: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  notes: string | null;
+}
+
+export interface ChefsChoiceTemplate {
+  id: string;
+  tierId: string;
+  name: string;
+  description: string | null;
+  effectiveFrom: string;
+  effectiveUntil: string | null;
+  active: boolean;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+  items?: ChefsChoiceTemplateItem[];
+  tierLabel?: string;
+  tierType?: TierType;
+  tierValue?: string;
+  itemCount?: number;
+}
+
+export interface ChefsChoiceSubscription {
+  id: string;
+  customerId: string;
+  tierId: string;
+  frequency: SubscriptionFrequency;
+  status: SubscriptionStatus;
+  nextDeliveryDate: string | null;
+  lastDeliveryDate: string | null;
+  deliveryAddress: string | null;
+  substitutionPreference: string | null;
+  paymentMethod: string;
+  notes: string | null;
+  pausedAt: string | null;
+  cancelledAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  // Enriched fields
+  tierLabel?: string;
+  tierType?: TierType;
+  tierValue?: string;
+  templateName?: string;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+}
+
+export interface ChefsChoiceOrder {
+  id: string;
+  orderNumber: string;
+  subscriptionId: string | null;
+  customerId: string;
+  templateId: string;
+  tierId: string;
+  status: string;
+  subtotal: string;
+  deliveryFee: string;
+  total: string;
+  deliveryAddress: string | null;
+  substitutionPreference: string | null;
+  paymentMethod: string;
+  notes: string | null;
+  fulfilledAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  // Enriched fields
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  tierLabel?: string;
+  templateName?: string;
+}
+
+// Public endpoints (no auth required)
+export async function fetchChefsChoiceTiers(): Promise<ChefsChoiceTier[]> {
+  return apiFetch<ChefsChoiceTier[]>('/api/chefs-choice/tiers');
+}
+
+export async function fetchChefsChoiceTierTemplate(tierId: string): Promise<ChefsChoiceTemplate> {
+  return apiFetch<ChefsChoiceTemplate>(`/api/chefs-choice/tiers/${tierId}/template`);
+}
+
+// Customer endpoints (requires customer auth)
+export async function fetchCustomerChefsChoiceSubscriptions(): Promise<ChefsChoiceSubscription[]> {
+  return customerAuthFetch<ChefsChoiceSubscription[]>('/api/customer/chefs-choice/subscriptions');
+}
+
+export interface CreateSubscriptionPayload {
+  tierId: string;
+  frequency: SubscriptionFrequency;
+  deliveryAddress?: string;
+  substitutionPreference?: string;
+  paymentMethod?: string;
+  notes?: string;
+}
+
+export async function createChefsChoiceSubscription(payload: CreateSubscriptionPayload): Promise<ChefsChoiceSubscription> {
+  return customerAuthFetch<ChefsChoiceSubscription>('/api/customer/chefs-choice/subscriptions', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function pauseChefsChoiceSubscription(id: string): Promise<ChefsChoiceSubscription> {
+  return customerAuthFetch<ChefsChoiceSubscription>(`/api/customer/chefs-choice/subscriptions/${id}/pause`, {
+    method: 'PATCH',
+  });
+}
+
+export async function resumeChefsChoiceSubscription(id: string): Promise<ChefsChoiceSubscription> {
+  return customerAuthFetch<ChefsChoiceSubscription>(`/api/customer/chefs-choice/subscriptions/${id}/resume`, {
+    method: 'PATCH',
+  });
+}
+
+export async function cancelChefsChoiceSubscription(id: string): Promise<{ success: boolean }> {
+  return customerAuthFetch<{ success: boolean }>(`/api/customer/chefs-choice/subscriptions/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function fetchCustomerChefsChoiceOrders(): Promise<ChefsChoiceOrder[]> {
+  return customerAuthFetch<ChefsChoiceOrder[]>('/api/customer/chefs-choice/orders');
+}
+
+// Admin endpoints (requires admin auth)
+export async function fetchAdminChefsChoiceTiers(): Promise<ChefsChoiceTier[]> {
+  return authFetch<ChefsChoiceTier[]>('/api/admin/chefs-choice/tiers');
+}
+
+export interface CreateTierPayload {
+  type: TierType;
+  value: number;
+  label: string;
+  description?: string;
+  active?: boolean;
+  sortOrder?: number;
+}
+
+export async function createChefsChoiceTier(payload: CreateTierPayload): Promise<ChefsChoiceTier> {
+  return authFetch<ChefsChoiceTier>('/api/admin/chefs-choice/tiers', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateChefsChoiceTier(id: string, payload: Partial<CreateTierPayload>): Promise<ChefsChoiceTier> {
+  return authFetch<ChefsChoiceTier>(`/api/admin/chefs-choice/tiers/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteChefsChoiceTier(id: string): Promise<{ success: boolean }> {
+  return authFetch<{ success: boolean }>(`/api/admin/chefs-choice/tiers/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function fetchAdminChefsChoiceTemplates(): Promise<ChefsChoiceTemplate[]> {
+  return authFetch<ChefsChoiceTemplate[]>('/api/admin/chefs-choice/templates');
+}
+
+export async function fetchAdminChefsChoiceTemplate(id: string): Promise<ChefsChoiceTemplate> {
+  return authFetch<ChefsChoiceTemplate>(`/api/admin/chefs-choice/templates/${id}`);
+}
+
+export interface CreateTemplatePayload {
+  tierId: string;
+  name: string;
+  description?: string;
+  effectiveFrom: string;
+  effectiveUntil?: string;
+  active?: boolean;
+  items?: Array<{
+    productId: string;
+    productName: string;
+    quantity: number;
+    notes?: string;
+  }>;
+}
+
+export async function createChefsChoiceTemplate(payload: CreateTemplatePayload): Promise<ChefsChoiceTemplate> {
+  return authFetch<ChefsChoiceTemplate>('/api/admin/chefs-choice/templates', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateChefsChoiceTemplate(id: string, payload: Partial<CreateTemplatePayload>): Promise<ChefsChoiceTemplate> {
+  return authFetch<ChefsChoiceTemplate>(`/api/admin/chefs-choice/templates/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteChefsChoiceTemplate(id: string): Promise<{ success: boolean }> {
+  return authFetch<{ success: boolean }>(`/api/admin/chefs-choice/templates/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function fetchAdminChefsChoiceSubscriptions(): Promise<ChefsChoiceSubscription[]> {
+  return authFetch<ChefsChoiceSubscription[]>('/api/admin/chefs-choice/subscriptions');
+}
+
+export async function updateAdminChefsChoiceSubscription(
+  id: string,
+  payload: { status?: SubscriptionStatus; nextDeliveryDate?: string; notes?: string }
+): Promise<ChefsChoiceSubscription> {
+  return authFetch<ChefsChoiceSubscription>(`/api/admin/chefs-choice/subscriptions/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function fetchAdminChefsChoiceOrders(): Promise<ChefsChoiceOrder[]> {
+  return authFetch<ChefsChoiceOrder[]>('/api/admin/chefs-choice/orders');
+}
+
+export async function updateChefsChoiceOrderStatus(id: string, status: string): Promise<ChefsChoiceOrder> {
+  return authFetch<ChefsChoiceOrder>(`/api/admin/chefs-choice/orders/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+}
