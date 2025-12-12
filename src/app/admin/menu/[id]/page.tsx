@@ -57,7 +57,7 @@ export default function EditProductPage() {
         setPrice(product.price)
         setInventory(product.inventory.toString())
         setIsActive(product.active)
-        setIsFeatured(product.sortOrder <= 3)
+        setIsFeatured(false)
         setIsUsingDemoData(false)
       } catch (err) {
         console.warn("Failed to fetch product from API, using local store:", err)
