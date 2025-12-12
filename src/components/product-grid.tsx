@@ -2,12 +2,14 @@
 
 import { Package } from "lucide-react"
 import { ProductCard } from "./product-card"
+import { ChefsChoiceCard } from "./chefs-choice-card"
 import type { Product } from "@/lib/store"
 
 interface ProductGridProps {
   products: Product[]
   onViewDetails: (product: Product) => void
   isLoading?: boolean
+  showChefsChoice?: boolean
 }
 
 function ProductSkeleton() {
@@ -23,7 +25,7 @@ function ProductSkeleton() {
   )
 }
 
-export function ProductGrid({ products, onViewDetails, isLoading }: ProductGridProps) {
+export function ProductGrid({ products, onViewDetails, isLoading, showChefsChoice }: ProductGridProps) {
   if (isLoading) {
     return (
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4">
@@ -48,6 +50,7 @@ export function ProductGrid({ products, onViewDetails, isLoading }: ProductGridP
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4 max-w-7xl mx-auto">
+      {showChefsChoice && <ChefsChoiceCard />}
       {products.map((product) => (
         <ProductCard key={product.id} product={product} onViewDetails={onViewDetails} />
       ))}

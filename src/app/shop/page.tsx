@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
-import Link from "next/link"
 import { Header } from "@/components/header"
 import { CategoryTabs } from "@/components/category-tabs"
 import { ProductGrid } from "@/components/product-grid"
@@ -11,8 +10,6 @@ import { FloatingCartButton } from "@/components/floating-cart-button"
 import { products as demoProducts, categories } from "@/lib/products"
 import { fetchProducts, type Product as ApiProduct } from "@/lib/api"
 import type { Product } from "@/lib/store"
-import { ChefHat, ArrowRight } from "lucide-react"
-import { Button } from "@/components/ui/button"
 
 // Default images by category for products without images
 const categoryImages: Record<string, string> = {
@@ -99,35 +96,13 @@ export default function ShopPage() {
       <Header onSearch={setSearchQuery} searchQuery={searchQuery} />
       <CategoryTabs activeCategory={activeCategory} onCategoryChange={setActiveCategory} />
 
-      {/* Chef's Choice Banner */}
-      {activeCategory === "All" && !searchQuery && (
-        <div className="px-4 pt-4">
-          <Link href="/shop/chefs-choice">
-            <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 p-4 hover:border-primary/40 transition-colors cursor-pointer">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
-                    <ChefHat className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground">Chef&apos;s Choice</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Let us curate the perfect selection for you
-                    </p>
-                  </div>
-                </div>
-                <Button variant="ghost" size="sm" className="gap-1 text-primary">
-                  Explore
-                  <ArrowRight className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          </Link>
-        </div>
-      )}
-
       <main>
-        <ProductGrid products={filteredProducts} onViewDetails={setSelectedProduct} isLoading={isLoading} />
+        <ProductGrid
+          products={filteredProducts}
+          onViewDetails={setSelectedProduct}
+          isLoading={isLoading}
+          showChefsChoice={activeCategory === "All" && !searchQuery}
+        />
       </main>
 
       <ProductDetailSheet
