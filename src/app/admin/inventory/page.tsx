@@ -44,9 +44,9 @@ function mapApiProduct(apiProduct: ApiProduct): InventoryProduct {
   return {
     id: apiProduct.id,
     name: apiProduct.name,
-    price: parseFloat(apiProduct.basePrice),
+    price: parseFloat(apiProduct.price),
     category: apiProduct.category,
-    inventory: apiProduct.stockQuantity,
+    inventory: apiProduct.inventory,
     image: apiProduct.imageUrl || undefined,
   }
 }
@@ -148,7 +148,7 @@ export default function InventoryPage() {
         setProducts((prev) =>
           prev.map((p) =>
             p.id === adjustProduct.id
-              ? { ...p, inventory: result.product.stockQuantity }
+              ? { ...p, inventory: result.product.inventory }
               : p
           )
         )

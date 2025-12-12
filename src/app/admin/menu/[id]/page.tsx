@@ -54,8 +54,8 @@ export default function EditProductPage() {
         setName(product.name)
         setCategory(product.category)
         setDescription(product.description || "")
-        setPrice(product.basePrice)
-        setInventory(product.stockQuantity.toString())
+        setPrice(product.price)
+        setInventory(product.inventory.toString())
         setIsActive(product.active)
         setIsFeatured(product.sortOrder <= 3)
         setIsUsingDemoData(false)
@@ -96,10 +96,9 @@ export default function EditProductPage() {
           name,
           category,
           description: description || undefined,
-          basePrice: parseFloat(price),
-          stockQuantity: parseInt(inventory),
+          price: parseFloat(price),
+          inventory: parseInt(inventory),
           active: isActive,
-          sortOrder: isFeatured ? 1 : 100,
         })
       } else {
         localUpdate(productId, {

@@ -502,13 +502,11 @@ export interface CreateProductPayload {
   name: string;
   description?: string;
   category: string;
-  basePrice: number;
-  variants?: any;
-  thcContent?: string;
-  cbdContent?: string;
+  price: number;
+  sku?: string;
   imageUrl?: string;
-  stockQuantity?: number;
-  sortOrder?: number;
+  inventory?: number;
+  lowStockThreshold?: number;
   active?: boolean;
 }
 

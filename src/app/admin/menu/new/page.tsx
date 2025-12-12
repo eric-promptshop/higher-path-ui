@@ -44,10 +44,10 @@ export default function NewProductPage() {
         name,
         category,
         description: description || undefined,
-        basePrice: parseFloat(price),
-        stockQuantity: parseInt(inventory),
+        price: parseFloat(price),
+        inventory: parseInt(inventory),
+        lowStockThreshold: parseInt(lowStockThreshold),
         active: isActive,
-        sortOrder: isFeatured ? 1 : 100,
       })
       router.push("/admin/menu")
     } catch (err) {

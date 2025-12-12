@@ -43,7 +43,7 @@ import {
 
 // Map API product to UI format
 function mapApiProduct(apiProduct: ApiProduct): Product {
-  const price = parseFloat(apiProduct.basePrice) || 0
+  const price = parseFloat(apiProduct.price) || 0
   return {
     id: apiProduct.id,
     name: apiProduct.name,
@@ -51,8 +51,8 @@ function mapApiProduct(apiProduct: ApiProduct): Product {
     description: apiProduct.description || "",
     image: apiProduct.imageUrl || "/images/purple_cannabis_flower_jar.png",
     category: apiProduct.category,
-    inventory: apiProduct.stockQuantity ?? 0,
-    featured: apiProduct.sortOrder <= 3,
+    inventory: apiProduct.inventory ?? 0,
+    featured: false,
   }
 }
 

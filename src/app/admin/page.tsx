@@ -46,7 +46,7 @@ export default function AdminDashboardPage() {
         }
 
         // Count low stock products from API
-        const lowStock = productsData.filter(p => p.stockQuantity > 0 && p.stockQuantity <= 10).length
+        const lowStock = productsData.filter(p => p.inventory > 0 && p.inventory <= 10).length
         setLowStockCount(lowStock)
       } catch (err) {
         console.warn("Failed to fetch dashboard data, using demo data:", err)
