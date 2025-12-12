@@ -25,7 +25,7 @@ const categoryImages: Record<string, string> = {
 
 // Map API product to UI product format
 function mapApiProduct(apiProduct: ApiProduct): Product {
-  const price = parseFloat(apiProduct.basePrice) || 0
+  const price = parseFloat(apiProduct.price) || 0
   const image = apiProduct.imageUrl || categoryImages[apiProduct.category] || "/images/purple_cannabis_flower_jar.png"
 
   return {
@@ -35,8 +35,8 @@ function mapApiProduct(apiProduct: ApiProduct): Product {
     description: apiProduct.description || "",
     image,
     category: apiProduct.category,
-    inventory: apiProduct.stockQuantity ?? 0,
-    featured: apiProduct.sortOrder <= 3, // First 3 products are featured
+    inventory: apiProduct.inventory ?? 0,
+    featured: false,
   }
 }
 

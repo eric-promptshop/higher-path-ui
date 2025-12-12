@@ -51,17 +51,13 @@ export interface Product {
   name: string;
   description: string | null;
   category: string;
-  basePrice: string;
-  variants: any;
-  thcContent: string | null;
-  cbdContent: string | null;
+  price: string;
+  sku: string;
   imageUrl: string | null;
-  inStock: boolean;
-  stockQuantity: number;
-  sortOrder: number;
+  inventory: number;
+  lowStockThreshold: number;
   active: boolean;
   createdAt: string;
-  updatedAt: string;
 }
 
 export async function fetchProducts(): Promise<Product[]> {
